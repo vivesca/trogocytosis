@@ -4,7 +4,7 @@ requires = ["hatchling"]
 
 [project]
 name = "trogocytosis"
-version = "0.5.0"
+version = "0.6.0"
 description = "Persistent browser MCP server with credential transfer and stealth fallback."
 readme = "README.md"
 license = { text = "MIT" }
@@ -37,4 +37,20 @@ trogocytosis = "trogocytosis.server:main"
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/trogocytosis"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"skills" = "trogocytosis/_skills"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/trogocytosis",
+    "skills",
+    "tests",
+    "README.md",
+    "LICENSE",
+    "pyproject.toml",
 ]

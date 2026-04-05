@@ -141,7 +141,14 @@ on sequential calls."""
 
 
 def main() -> None:
-    """CLI entry point for `uvx trogocytosis`."""
+    """CLI entry point — dispatches between MCP server and install-skills."""
+    import sys
+
+    if len(sys.argv) > 1 and sys.argv[1] == "install-skills":
+        from trogocytosis.install import main as install_main
+        raise SystemExit(install_main(sys.argv[2:]))
+
+    # Default: run MCP server
     app.run(transport="stdio")
 
 

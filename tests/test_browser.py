@@ -9,7 +9,7 @@ import pytest
 def test_import():
     """Package imports without error."""
     import trogocytosis
-    assert trogocytosis.__version__ == "0.5.0"
+    assert trogocytosis.__version__ == "0.6.0"
 
 
 def test_agent_browser_wrapper_navigate():
@@ -172,3 +172,23 @@ def test_stealth_random_ua():
     ua = random_ua()
     assert "Chrome" in ua
     assert "Mozilla" in ua
+
+
+def test_install_skills_to_custom_path(tmp_path):
+    """install_skills copies SKILL.md files to the target directory."""
+    from trogocytosis.install import install_skills
+
+    installed = install_skills(tmp_path, force=True)
+    assert len(installed) >= 4
+    assert "auth-wall-recovery" in installed
+    assert "browser-extraction" in installed
+    assert "browser-stealth" in installed
+    assert "browser-session" in installed
+
+    # Verify files actually exist with proper frontmatter
+    for name in installed:
+        skill_file = tmp_path / name / "SKILL.md"
+        assert skill_file.exists()
+        content = skill_file.read_text()
+        assert content.startswith("---\n")
+        assert f"name: {name}" in content
