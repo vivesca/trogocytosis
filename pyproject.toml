@@ -1,0 +1,30 @@
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[project]
+name = "trogocytosis"
+version = "0.1.0"
+description = "Persistent browser MCP server with credential transfer and stealth fallback."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Terry Li" }]
+requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Internet :: WWW/HTTP :: Browsers",
+]
+keywords = ["mcp", "browser", "automation", "agent-browser", "playwright", "stealth"]
+
+dependencies = [
+    "mcp>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/vivesca/trogocytosis"
+Repository = "https://github.com/vivesca/trogocytosis"
+
+[project.scripts]
+trogocytosis = "trogocytosis.server:main"
