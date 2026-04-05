@@ -10,8 +10,11 @@ import shutil
 import sys
 from pathlib import Path
 
-# Platform → default skill install directory
+# Platform -> default skill install directory
+# `.agents/skills/` is the cross-client convention from agentskills.io spec
+# scanned by Copilot, Codex, Gemini CLI, Cursor, and others.
 SKILL_DIRS = {
+    "agents": Path.home() / ".agents" / "skills",  # cross-client (default)
     "claude": Path.home() / ".claude" / "skills",
     "gemini": Path.home() / ".gemini" / "skills",
     "copilot": Path.home() / ".copilot" / "skills",
@@ -66,9 +69,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--target",
-        choices=list(SKILL_DIRS.keys()) + ["all"],
-        default="claude",
-        help="Which tool to install into (default: claude)",
+        choices=list(SKILL_DIRS.keys()) + ["all", "both"],
+        default="both",
+        help="Which tool to install into (default: both = claude + agents)",
     )
     parser.add_argument(
         "--path",
@@ -85,10 +88,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.path:
         targets = [args.path]
     elif args.target == "all":
-        targets = [d for d in SKILL_DIRS.values() if d.parent.exists()]
-        if not targets:
-            print("No AI tool directories found (~/.claude, ~/.gemini, etc.)", file=sys.stderr)
-            return 1
+        # All known skill dirs, whether parent exists or not
+        targets = list(SKILL_DIRS.values())
+    elif args.target == "both":
+        # Default: Claude Code + cross-client agents path
+        targets = [SKILL_DIRS["claude"], SKILL_DIRS["agents"]]
     else:
         targets = [SKILL_DIRS[args.target]]
 
