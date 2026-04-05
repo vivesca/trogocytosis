@@ -9,14 +9,17 @@ import pytest
 def test_import():
     """Package imports without error."""
     import trogocytosis
-    assert trogocytosis.__version__ == "0.1.0"
+    assert trogocytosis.__version__ == "0.3.0"
 
 
 def test_agent_browser_wrapper_navigate():
-    """_agent_browser.run calls subprocess with correct args."""
+    """_agent_browser.run calls subprocess with correct args when CLI available."""
     from trogocytosis._agent_browser import run
 
-    with patch("subprocess.run") as mock_run:
+    with (
+        patch("trogocytosis._agent_browser._has_agent_browser", return_value=True),
+        patch("subprocess.run") as mock_run,
+    ):
         mock_run.return_value = MagicMock(
             stdout="Page loaded", stderr="", returncode=0
         )
@@ -33,10 +36,42 @@ def test_agent_browser_wrapper_failure():
     """_agent_browser.run handles subprocess failure."""
     from trogocytosis._agent_browser import run
 
-    with patch("subprocess.run") as mock_run:
+    with (
+        patch("trogocytosis._agent_browser._has_agent_browser", return_value=True),
+        patch("subprocess.run") as mock_run,
+    ):
         mock_run.side_effect = subprocess.CalledProcessError(1, "agent-browser")
         ok, output = run(["open", "https://example.com"])
         assert ok is False
+
+
+def test_fallback_to_playwright():
+    """Falls back to Playwright when agent-browser not installed."""
+    from trogocytosis._agent_browser import run
+
+    with (
+        patch("trogocytosis._agent_browser._has_agent_browser", return_value=False),
+        patch("trogocytosis._agent_browser._has_playwright", return_value=True),
+        patch("trogocytosis._playwright.run") as mock_pw,
+    ):
+        mock_pw.return_value = (True, "pw result")
+        ok, output = run(["open", "https://example.com"])
+        assert ok is True
+        assert output == "pw result"
+        mock_pw.assert_called_once_with(["open", "https://example.com"])
+
+
+def test_no_backend_error():
+    """Returns helpful error when neither backend available."""
+    from trogocytosis._agent_browser import run
+
+    with (
+        patch("trogocytosis._agent_browser._has_agent_browser", return_value=False),
+        patch("trogocytosis._agent_browser._has_playwright", return_value=False),
+    ):
+        ok, output = run(["open", "https://example.com"])
+        assert ok is False
+        assert "No browser backend found" in output
 
 
 def test_navigate_returns_title_and_url():

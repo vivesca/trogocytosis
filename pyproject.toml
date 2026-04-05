@@ -4,7 +4,7 @@ requires = ["hatchling"]
 
 [project]
 name = "trogocytosis"
-version = "0.2.0"
+version = "0.3.0"
 description = "Persistent browser MCP server with credential transfer and stealth fallback."
 readme = "README.md"
 license = { text = "MIT" }
@@ -21,6 +21,11 @@ keywords = ["mcp", "browser", "automation", "agent-browser", "playwright", "stea
 dependencies = [
     "mcp>=1.0",
 ]
+
+[project.optional-dependencies]
+playwright = ["playwright>=1.40"]
+cookies = ["pycookiecheat>=0.7"]
+all = ["playwright>=1.40", "pycookiecheat>=0.7"]
 
 [project.urls]
 Homepage = "https://github.com/vivesca/trogocytosis"

@@ -1,20 +1,43 @@
-"""Low-level subprocess wrapper for agent-browser CLI."""
+"""Backend router — uses agent-browser CLI if available, falls back to Playwright."""
 
 from __future__ import annotations
 
 import shutil
-import subprocess
 
 
-def _binary() -> str:
-    return shutil.which("agent-browser") or "agent-browser"
+def _has_agent_browser() -> bool:
+    return shutil.which("agent-browser") is not None
+
+
+def _has_playwright() -> bool:
+    try:
+        import playwright  # noqa: F401
+        return True
+    except ImportError:
+        return False
 
 
 def run(args: list[str]) -> tuple[bool, str]:
-    """Run agent-browser CLI command. Returns (success, stdout)."""
+    """Run browser command. Prefers agent-browser CLI, falls back to Playwright."""
+    if _has_agent_browser():
+        return _run_cli(args)
+    if _has_playwright():
+        from trogocytosis._playwright import run as pw_run
+        return pw_run(args)
+    return False, (
+        "No browser backend found. Install one of:\n"
+        "  npm i -g agent-browser    (recommended)\n"
+        "  pip install playwright     (fallback)"
+    )
+
+
+def _run_cli(args: list[str]) -> tuple[bool, str]:
+    """Run agent-browser CLI command."""
+    import subprocess
+
     try:
         res = subprocess.run(
-            [_binary(), *args],
+            ["agent-browser", *args],
             capture_output=True,
             text=True,
             check=True,
@@ -23,5 +46,3 @@ def run(args: list[str]) -> tuple[bool, str]:
         return True, res.stdout.strip()
     except subprocess.CalledProcessError as exc:
         return False, exc.stderr.strip() if exc.stderr else str(exc)
-    except FileNotFoundError:
-        return False, "agent-browser not found. Install with: npm i -g agent-browser"
