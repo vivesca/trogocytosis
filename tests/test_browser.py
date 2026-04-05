@@ -9,7 +9,7 @@ import pytest
 def test_import():
     """Package imports without error."""
     import trogocytosis
-    assert trogocytosis.__version__ == "0.3.0"
+    assert trogocytosis.__version__ == "0.4.0"
 
 
 def test_agent_browser_wrapper_navigate():

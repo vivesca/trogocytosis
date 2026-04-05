@@ -1,83 +1,73 @@
-"""MCP server entry point — exposes browser tools via stdio transport."""
+"""MCP server — exposes browser tools via FastMCP. Works standalone (uvx) or mounted into another server."""
 
 from __future__ import annotations
 
-import json
-
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
+from fastmcp import FastMCP
 
 from trogocytosis import browser, cookies, stealth
 
-app = Server("trogocytosis")
+app = FastMCP("trogocytosis")
 
 
 @app.tool()
-async def browser_navigate(url: str) -> str:
+def browser_navigate(url: str) -> dict:
     """Navigate to URL. Returns page title and URL."""
-    return json.dumps(browser.navigate(url))
+    return browser.navigate(url)
 
 
 @app.tool()
-async def browser_snapshot() -> str:
+def browser_snapshot() -> dict:
     """Capture accessibility tree of current page."""
-    return json.dumps(browser.snapshot())
+    return browser.snapshot()
 
 
 @app.tool()
-async def browser_screenshot(path: str = "/tmp/screenshot.png", device: str = "") -> str:
+def browser_screenshot(path: str = "/tmp/screenshot.png", device: str = "") -> dict:
     """Capture PNG screenshot of current page."""
-    return json.dumps(browser.screenshot(path, device))
+    return browser.screenshot(path, device)
 
 
 @app.tool()
-async def browser_click(selector: str) -> str:
+def browser_click(selector: str) -> dict:
     """Click element by CSS selector."""
-    return json.dumps(browser.click(selector))
+    return browser.click(selector)
 
 
 @app.tool()
-async def browser_fill(selector: str, value: str) -> str:
+def browser_fill(selector: str, value: str) -> dict:
     """Fill form field (clears first, then types value)."""
-    return json.dumps(browser.fill(selector, value))
+    return browser.fill(selector, value)
 
 
 @app.tool()
-async def browser_eval(js: str) -> str:
+def browser_eval(js: str) -> dict:
     """Evaluate JavaScript in page context."""
-    return json.dumps(browser.evaluate(js))
+    return browser.evaluate(js)
 
 
 @app.tool()
-async def browser_inject_cookies(domain: str, browser_name: str = "chrome") -> str:
+def browser_inject_cookies(domain: str, browser_name: str = "chrome") -> dict:
     """Import cookies from host browser for a domain (trogocytosis)."""
-    return json.dumps(cookies.inject(domain, browser_name))
+    return cookies.inject(domain, browser_name)
 
 
 @app.tool()
-async def browser_check_auth() -> str:
+def browser_check_auth() -> dict:
     """Check if current page requires authentication."""
-    return json.dumps(browser.check_auth())
+    return browser.check_auth()
 
 
 @app.tool()
-async def browser_stealth() -> str:
+def browser_stealth() -> dict:
     """Apply stealth patches to browser session."""
     for js in stealth.patches():
         browser.evaluate(js)
-    return json.dumps({"applied": len(stealth.patches()), "ua": stealth.random_ua()})
-
-
-async def _run() -> None:
-    async with stdio_server() as (read, write):
-        await app.run(read, write)
+    return {"applied": len(stealth.patches()), "ua": stealth.random_ua()}
 
 
 def main() -> None:
     """CLI entry point for `uvx trogocytosis`."""
-    import asyncio
-
-    asyncio.run(_run())
+    app.run(transport="stdio")
 
 
 if __name__ == "__main__":
