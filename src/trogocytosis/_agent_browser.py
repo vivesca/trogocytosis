@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import shutil
 
 
@@ -10,11 +11,7 @@ def _has_agent_browser() -> bool:
 
 
 def _has_playwright() -> bool:
-    try:
-        import playwright  # noqa: F401
-        return True
-    except ImportError:
-        return False
+    return importlib.util.find_spec("playwright") is not None
 
 
 def run(args: list[str]) -> tuple[bool, str]:
