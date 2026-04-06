@@ -32,12 +32,11 @@ src/trogocytosis/
 ### Dependencies
 
 Required:
-- `mcp>=1.0` — MCP server SDK
-- `pycookiecheat>=0.7` — Chrome cookie extraction (macOS/Linux)
+- `fastmcp>=2.0` — MCP server SDK
 
 Optional:
-- `nodriver` — stealth Chrome fallback (when agent-browser is blocked)
-- `playwright` — direct Playwright fallback
+- `playwright>=1.40` — direct Playwright fallback
+- `pycookiecheat>=0.7` — Chrome cookie extraction (macOS/Linux)
 
 agent-browser CLI must be installed separately (`npm i -g agent-browser`).
 
@@ -103,8 +102,6 @@ returns: { authenticated: bool, url: string }
 
 Extraction tiers:
 1. **pycookiecheat** — Python library, reads Chrome Cookies SQLite + Keychain decryption
-2. **kleis** (if installed) — Rust CLI, faster, handles newer Chrome encryption
-3. **HTTP bridge** (if available) — `http://<mac>:7743/cookies?domain=<d>` for remote
 
 Injection: `agent-browser cookies set <name> <value> --url <url> --domain <domain> --httpOnly --secure`
 
@@ -116,14 +113,6 @@ Via `browser_eval` at session start:
 - `navigator.plugins` -> mock array
 - Permissions query -> resolved promise
 - Random User-Agent from 20 real Chrome UAs
-
-## Vivesca Integration
-
-After trogocytosis is built:
-1. Add `trogocytosis` to vivesca's `pyproject.toml` dependencies
-2. Rewrite `chemotaxis.py` to import from `trogocytosis.browser` instead of calling agent-browser directly
-3. Rewrite `porta.py` to import from `trogocytosis.cookies`
-4. Delete `browser_stealth.py` (moved to trogocytosis)
 
 ## Testing
 
