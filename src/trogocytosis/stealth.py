@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Callable
 
 _USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
@@ -49,7 +50,7 @@ window.navigator.permissions.query = (parameters) => (
     ]
 
 
-def apply(evaluate_fn: object) -> None:
+def apply(evaluate_fn: Callable[[str], object]) -> None:
     """Apply all stealth patches using the provided evaluate function."""
     for js in patches():
-        evaluate_fn(js)  # type: ignore[operator]
+        evaluate_fn(js)
