@@ -7,26 +7,64 @@ from typing import Any
 from trogocytosis import _agent_browser
 
 
-def _extract_cookies(domain: str, browser: str = "chrome") -> dict[str, str]:
-    """Extract cookies from host browser using pycookiecheat."""
-    from pycookiecheat import chrome_cookies
+def _extract_cookies(domain: str, bridge_host: str = "mac:7743") -> dict[str, str]:
+    """Extract cookies via remote bridge, falling back to pycookiecheat."""
+    import json
+    import urllib.request
 
-    url = f"https://{domain}/"
-    return chrome_cookies(url)
+    # Tier 1: Remote cookie bridge (HTTP)
+    try:
+        url = f"http://{bridge_host}/cookies?domain={domain}"
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            cookies = json.loads(resp.read().decode("utf-8"))
+        if cookies and "error" not in cookies:
+            return cookies
+    except Exception:
+        pass
+
+    # Tier 2: Local pycookiecheat
+    try:
+        from pycookiecheat import chrome_cookies
+
+        return chrome_cookies(f"https://{domain}/")
+    except Exception:
+        pass
+
+    return {}
 
 
-def inject(domain: str, browser: str = "chrome") -> dict[str, Any]:
+def inject(domain: str, bridge_host: str = "mac:7743") -> dict[str, Any]:
     """Extract cookies from host browser and inject into agent-browser."""
-    cookies = _extract_cookies(domain, browser)
-    url = f"https://{domain}/"
-    _agent_browser.run(["open", url])
+    domain = domain.removeprefix("https://").removeprefix("http://").rstrip("/")
+    cookies = _extract_cookies(domain, bridge_host)
+    if not cookies:
+        return {
+            "success": False,
+            "message": f"No cookies for {domain}",
+            "count": 0,
+            "failures": [],
+        }
+    url = f"https://{domain}"
+    injected = 0
+    failures = []
     for name, value in cookies.items():
-        _agent_browser.run([
-            "cookies", "set", name, value,
+        cmd = [
+            "cookies", "set", name, str(value),
             "--url", url,
-            "--domain", f".{domain}",
             "--path", "/",
             "--httpOnly",
             "--secure",
-        ])
-    return {"count": len(cookies), "domain": domain}
+        ]
+        if not name.startswith("__Host-"):
+            cmd.extend(["--domain", f".{domain}"])
+        ok, _ = _agent_browser.run(cmd)
+        if ok:
+            injected += 1
+        else:
+            failures.append(name)
+    return {
+        "success": injected > 0,
+        "message": f"Injected {injected}/{len(cookies)} cookies for {domain}",
+        "count": injected,
+        "failures": failures,
+    }
