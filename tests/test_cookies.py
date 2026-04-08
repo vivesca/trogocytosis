@@ -25,8 +25,11 @@ def test_extract_cookies_falls_back_to_pycookiecheat():
     """Falls back to pycookiecheat when bridge is unreachable."""
     from trogocytosis.cookies import _extract_cookies
 
-    with patch("urllib.request.urlopen", side_effect=ConnectionError("unreachable")):
-        with patch("pycookiecheat.chrome_cookies", return_value={"NID": "xyz"}) as mock_cc:
+    mock_cc = MagicMock(return_value={"NID": "xyz"})
+    mock_module = MagicMock(chrome_cookies=mock_cc)
+
+    with patch.dict("sys.modules", {"pycookiecheat": mock_module}):
+        with patch("urllib.request.urlopen", side_effect=ConnectionError("unreachable")):
             result = _extract_cookies("github.com")
 
     assert result == {"NID": "xyz"}
