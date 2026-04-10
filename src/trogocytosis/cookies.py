@@ -126,7 +126,12 @@ def login_headed(domain: str, login_url: str | None = None) -> dict[str, Any]:
 
 
 def _op_lookup(domain: str) -> dict[str, str] | None:
-    """Look up credentials from 1Password Agents vault by domain."""
+    """Look up credentials from 1Password Agents vault by domain.
+
+    Matches items whose URL contains the domain. When multiple items match,
+    picks the one whose URL is the closest match (shortest href containing
+    the domain — avoids picking a generic 'google.com' item for 'linkedin.com').
+    """
     if not shutil.which("op"):
         return None
     try:
@@ -137,21 +142,27 @@ def _op_lookup(domain: str) -> dict[str, str] | None:
         if result.returncode != 0:
             return None
         items = json.loads(result.stdout)
+        best_match: tuple[int, str] | None = None  # (url_length, item_id)
         for item in items:
-            urls = item.get("urls", [])
-            for url_entry in urls:
-                if domain in url_entry.get("href", ""):
-                    item_id = item["id"]
-                    username = subprocess.run(
-                        ["op", "item", "get", item_id, "--vault", "Agents", "--fields", "username", "--reveal"],
-                        capture_output=True, text=True, timeout=10,
-                    ).stdout.strip()
-                    password = subprocess.run(
-                        ["op", "item", "get", item_id, "--vault", "Agents", "--fields", "password", "--reveal"],
-                        capture_output=True, text=True, timeout=10,
-                    ).stdout.strip()
-                    if username and password:
-                        return {"username": username, "password": password}
+            for url_entry in item.get("urls", []):
+                href = url_entry.get("href", "")
+                if domain in href:
+                    url_len = len(href)
+                    if best_match is None or url_len < best_match[0]:
+                        best_match = (url_len, item["id"])
+        if best_match is None:
+            return None
+        item_id = best_match[1]
+        username = subprocess.run(
+            ["op", "item", "get", item_id, "--vault", "Agents", "--fields", "username", "--reveal"],
+            capture_output=True, text=True, timeout=10,
+        ).stdout.strip()
+        password = subprocess.run(
+            ["op", "item", "get", item_id, "--vault", "Agents", "--fields", "password", "--reveal"],
+            capture_output=True, text=True, timeout=10,
+        ).stdout.strip()
+        if username and password:
+            return {"username": username, "password": password}
     except Exception:
         pass
     return None
