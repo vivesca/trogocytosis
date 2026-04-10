@@ -4,7 +4,7 @@ requires = ["hatchling"]
 
 [project]
 name = "trogocytosis"
-version = "0.7.0"
+version = "0.8.0"
 description = "Persistent browser MCP server with credential transfer and stealth fallback."
 readme = "README.md"
 license = { text = "MIT" }
@@ -19,6 +19,7 @@ classifiers = [
 keywords = ["mcp", "browser", "automation", "agent-browser", "playwright", "stealth"]
 
 dependencies = [
+    "cyclopts>=4.0",
     "fastmcp>=2.0",
 ]
 
@@ -32,7 +33,7 @@ Homepage = "https://github.com/vivesca/trogocytosis"
 Repository = "https://github.com/vivesca/trogocytosis"
 
 [project.scripts]
-trogocytosis = "trogocytosis.server:main"
+trogocytosis = "trogocytosis.cli:main"
 
 [dependency-groups]
 dev = [
