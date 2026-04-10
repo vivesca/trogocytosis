@@ -95,6 +95,22 @@ def check_auth(*, json_output: bool = False) -> None:
         print(f"{status}: {result['url']}")
 
 
+@app.command(name="login")
+def login(domain: str, *, login_url: str = "", json_output: bool = False) -> None:
+    """Headed browser login with 1Password auto-fill. Persists session."""
+    result = cookies.login_headed(domain, login_url or None)
+    if json_output:
+        print(json.dumps(result))
+    else:
+        if result.get("success"):
+            fill_msg = " (auto-filled from 1Password)" if result.get("auto_filled") else ""
+            print(f"Logged in to {domain}{fill_msg}")
+            print(f"Session URL: {result.get('url', '')}")
+        else:
+            print(f"Login may have failed: {result.get('url', result.get('error', ''))}", file=sys.stderr)
+            raise SystemExit(1)
+
+
 @app.command(name="stealth")
 def apply_stealth(*, json_output: bool = False) -> None:
     """Apply stealth patches to browser session."""
