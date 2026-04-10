@@ -9,7 +9,7 @@ from typing import Any
 
 from trogocytosis import _agent_browser
 
-COOKIE_BRIDGE_URL = os.environ.get("COOKIE_BRIDGE_URL", "http://127.0.0.1:9742")
+COOKIE_BRIDGE_URL = os.environ.get("COOKIE_BRIDGE_URL", "http://127.0.0.1:7743")
 
 
 def _extract_via_bridge(domain: str) -> dict[str, str]:
