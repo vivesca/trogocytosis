@@ -1,40 +1,40 @@
-"""Backend router — uses agent-browser CLI if available, falls back to Playwright."""
+"""Backend router — uses agent-browser CLI, supports SSH transport."""
 
 from __future__ import annotations
 
-import importlib.util
+import os
 import shutil
+
+
+def _ssh_prefix() -> list[str]:
+    """Return SSH prefix if TROGOCYTOSIS_HOST is set, else empty."""
+    host = os.environ.get("TROGOCYTOSIS_HOST")
+    if host:
+        return ["ssh", host]
+    return []
 
 
 def _has_agent_browser() -> bool:
     return shutil.which("agent-browser") is not None
 
 
-def _has_playwright() -> bool:
-    return importlib.util.find_spec("playwright") is not None
-
-
 def run(args: list[str]) -> tuple[bool, str]:
-    """Run browser command. Prefers agent-browser CLI, falls back to Playwright."""
-    if _has_agent_browser():
-        return _run_cli(args)
-    if _has_playwright():
-        from trogocytosis._playwright import run as pw_run
-        return pw_run(args)
-    return False, (
-        "No browser backend found. Install one of:\n"
-        "  npm i -g agent-browser    (recommended)\n"
-        "  pip install playwright     (fallback)"
-    )
+    """Run browser command via agent-browser CLI (locally or SSH)."""
+    if not _has_agent_browser() and not os.environ.get("TROGOCYTOSIS_HOST"):
+        return False, (
+            "agent-browser not found. Install: npm i -g agent-browser\n"
+            "Or set TROGOCYTOSIS_HOST for remote execution."
+        )
+    return _run_cli(args)
 
 
 def _run_cli(args: list[str]) -> tuple[bool, str]:
-    """Run agent-browser CLI command."""
+    """Run agent-browser CLI command, locally or via SSH."""
     import subprocess
-
+    prefix = _ssh_prefix()
     try:
         res = subprocess.run(
-            ["agent-browser", *args],
+            [*prefix, "agent-browser", *args],
             capture_output=True,
             text=True,
             check=True,

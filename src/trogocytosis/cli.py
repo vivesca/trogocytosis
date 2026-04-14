@@ -123,12 +123,6 @@ def apply_stealth(*, json_output: bool = False) -> None:
         print(f"Applied {result['applied']} patches, UA: {result['ua']}")
 
 
-@app.command(name="serve")
-def serve() -> None:
-    """Run as MCP server (stdio transport)."""
-    from trogocytosis.server import app as mcp_app
-
-    mcp_app.run(transport="stdio")
 
 
 def main() -> None:
