@@ -1,8 +1,7 @@
 """Tests for trogocytosis CLI."""
 
 import json
-import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -147,7 +146,7 @@ def test_inject_cookies_command(capsys, mock_cookies):
         app(["inject-cookies", "example.com", "--browser-name", "firefox"])
     
     assert exc_info.value.code == 0
-    mock_cookies.inject.assert_called_once_with("example.com", "firefox")
+    mock_cookies.inject.assert_called_once_with("example.com", "firefox", bridge_host="mac:7743")
     captured = capsys.readouterr()
     assert "Injected 5 cookies for example.com" in captured.out
 
@@ -219,24 +218,6 @@ def test_apply_stealth_command(capsys, mock_browser, mock_stealth):
     captured = capsys.readouterr()
     assert "Applied 2 patches" in captured.out
     assert "UA: Mozilla/5.0 Test UA" in captured.out
-
-
-def test_serve_command():
-    """Test serve command imports and runs mcp app."""
-    # Use create=True because mcp_app only exists after import inside the function
-    """Test main() calls app()."""
-    with patch("trogocytosis.cli.app") as mock_app:
-        main()
-        mock_app.assert_called_once()
-def test_serve_command():
-    """Test serve command imports and runs mcp app."""
-    # Patch the server module before it's imported by serve
-    mock_app = MagicMock()
-    with patch("trogocytosis.server.app", mock_app):
-        with pytest.raises(SystemExit) as exc_info:
-            app(["serve"])
-        assert exc_info.value.code == 0
-        mock_app.run.assert_called_once_with(transport="stdio")
 
 
 def test_main_calls_app():

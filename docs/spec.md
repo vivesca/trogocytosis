@@ -1,20 +1,22 @@
-# trogocytosis — Design Spec
+# trogocytosis - Design Spec
 
 ## Overview
 
-Persistent browser MCP server with credential transfer and stealth fallback.
-Wraps `agent-browser` CLI (Apache-2.0, by Vercel) with three capabilities no existing MCP server provides:
+Browser automation CLI with credential transfer and stealth fallback. It wraps
+`agent-browser` and adds Vivesca-specific session borrowing and escalation.
 
-1. **Persistent sessions** — browser stays alive across MCP tool calls
-2. **Credential transfer (trogocytosis)** — import cookies from Chrome/Arc/Firefox
-3. **Multi-tier stealth fallback** — headless -> cookie injection -> stealth patches
+1. **Persistent sessions** - `agent-browser` keeps browser state between CLI calls
+2. **Credential transfer** - import cookies from the host browser into the agent browser
+3. **SSH transport** - run the browser on another machine with `TROGOCYTOSIS_HOST`
+4. **Stealth fallback** - apply navigator patches when bot detection blocks access
 
 ## Architecture
 
 ```
-Standalone users:  uvx trogocytosis  (stdio MCP server)
-Vivesca:           from trogocytosis import browser  (direct Python import)
-Both:              -> agent-browser CLI (subprocess)
+CLI:               trogocytosis <command>
+Library:           from trogocytosis import browser, cookies, stealth
+Local backend:     agent-browser ...
+Remote backend:    ssh "$TROGOCYTOSIS_HOST" agent-browser ...
 ```
 
 ### Package Structure
@@ -22,9 +24,8 @@ Both:              -> agent-browser CLI (subprocess)
 ```
 src/trogocytosis/
     __init__.py          # version, public API re-exports
-    server.py            # MCP server (mcp SDK, stdio transport)
     browser.py           # Core API: navigate, snapshot, click, fill, eval, screenshot
-    cookies.py           # Cookie extraction + injection (pycookiecheat, kleis)
+    cookies.py           # Cookie extraction + injection
     stealth.py           # Navigator patches, UA rotation, human delay
     _agent_browser.py    # Low-level subprocess wrapper for agent-browser CLI
 ```
@@ -32,87 +33,96 @@ src/trogocytosis/
 ### Dependencies
 
 Required:
-- `fastmcp>=2.0` — MCP server SDK
+- `cyclopts>=4.0` - CLI framework
+- `agent-browser` CLI installed separately (`npm i -g agent-browser`)
 
 Optional:
-- `playwright>=1.40` — direct Playwright fallback
-- `pycookiecheat>=0.7` — Chrome cookie extraction (macOS/Linux)
+- `pycookiecheat>=0.7` - Chrome cookie extraction (macOS/Linux)
 
-agent-browser CLI must be installed separately (`npm i -g agent-browser`).
+## CLI Commands
 
-## MCP Tools
+### navigate
 
-### browser_navigate
 Navigate to URL. Returns page title + URL.
 ```
-params: { url: string }
-returns: { title: string, url: string }
+trogocytosis navigate https://example.com
 ```
 
-### browser_snapshot  
+### snapshot
+
 Capture accessibility tree of current page.
 ```
-params: {}
-returns: { snapshot: string }  # ARIA tree text
+trogocytosis snapshot
 ```
 
-### browser_screenshot
+### screenshot
+
 Capture PNG screenshot.
 ```
-params: { path?: string, device?: string }
-returns: { path: string, size_bytes: int }
+trogocytosis screenshot /tmp/page.png
 ```
 
-### browser_click
+### click
+
 Click element by CSS selector.
 ```
-params: { selector: string }
-returns: { success: bool }
+trogocytosis click '[ref=e12]'
 ```
 
-### browser_fill
+### fill
+
 Fill form field.
 ```
-params: { selector: string, value: string }
-returns: { success: bool }
+trogocytosis fill '#email' terry@example.com
 ```
 
-### browser_eval
+### eval
+
 Evaluate JavaScript in page context.
 ```
-params: { js: string }
-returns: { result: string }
+trogocytosis eval 'document.body.innerText'
 ```
 
-### browser_inject_cookies
+### inject-cookies
+
 Import cookies from host browser for a domain (the trogocytosis action).
 ```
-params: { domain: string, browser?: "chrome" | "arc" | "firefox" }
-returns: { count: int, domain: string }
+trogocytosis inject-cookies github.com --json-output
 ```
 
-### browser_check_auth
+### check-auth
+
 Check if current page requires authentication.
 ```
-params: {}
-returns: { authenticated: bool, url: string }
+trogocytosis check-auth --json-output
 ```
 
 ## Cookie Transfer (trogocytosis)
 
 Extraction tiers:
-1. **pycookiecheat** — Python library, reads Chrome Cookies SQLite + Keychain decryption
+1. Cookie bridge, defaulting to `mac:7743`
+2. `porta`, when installed
+3. `pycookiecheat`, when installed
 
 Injection: `agent-browser cookies set <name> <value> --url <url> --domain <domain> --httpOnly --secure`
 
 ## Stealth Patches (applied to agent-browser context)
 
-Via `browser_eval` at session start:
+Via `trogocytosis stealth`:
 - `navigator.webdriver` -> undefined
 - `window.chrome.runtime` -> stub
 - `navigator.plugins` -> mock array
 - Permissions query -> resolved promise
 - Random User-Agent from 20 real Chrome UAs
+
+## Remote Browser Host
+
+Set `TROGOCYTOSIS_HOST` to run `agent-browser` over SSH:
+
+```
+TROGOCYTOSIS_HOST=mac trogocytosis login linkedin.com
+TROGOCYTOSIS_HOST=mac trogocytosis snapshot
+```
 
 ## Testing
 

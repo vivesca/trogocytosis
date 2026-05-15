@@ -35,6 +35,7 @@ trogocytosis = "trogocytosis.cli:main"
 
 [dependency-groups]
 dev = [
+    "pycookiecheat>=0.7",
     "pytest>=9.0.2",
 ]
 

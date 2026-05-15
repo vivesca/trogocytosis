@@ -1,31 +1,31 @@
 ---
 name: browser-session
-description: Use when understanding or managing trogocytosis's persistent browser session — cookies, state, and lifecycle across multiple tool calls
+description: Use when understanding or managing trogocytosis's persistent browser session - cookies, state, and lifecycle across multiple CLI calls
 ---
 
 # Browser session model (trogocytosis)
 
-trogocytosis reuses one browser instance across all tool calls in a single MCP session. This makes it 2-3x faster than tools that launch a fresh browser per call.
+trogocytosis reuses the `agent-browser` session across CLI calls. This avoids cold starts and keeps page state available while an agent performs a sequence of browser actions.
 
 ## What persists across calls
 
-- **Cookies** — including those injected via `browser_inject_cookies`
-- **localStorage** — authentication tokens, preferences, cached data
-- **Session storage** — temporary state within a tab
-- **Open tabs** — the current page stays open between calls
-- **Stealth patches** — if applied via `browser_stealth`, they stick
+- **Cookies** - including those injected via `trogocytosis inject-cookies`
+- **localStorage** - authentication tokens, preferences, cached data
+- **Session storage** - temporary state within a tab
+- **Open tabs** - the current page stays open between calls
+- **Stealth patches** - if applied via `trogocytosis stealth`, they stick
 
 ## What does NOT persist
 
-- **Between MCP sessions** — when the server restarts, state is lost
-- **Across devices** — session is local to the machine running the MCP server
-- **After explicit clear** — some sites clear their own state on navigation
+- **After browser close/restart** - state is reset when the backing browser profile is cleared
+- **Across devices** - session is local to the machine running `agent-browser`
+- **After explicit clear** - some sites clear their own state on navigation
 
 ## Performance implication
 
-Compare to vanilla Playwright MCP which launches a new browser per call:
+Compare to launching a fresh Playwright browser per action:
 
-| Operation | trogocytosis | Playwright MCP |
+| Operation | trogocytosis | Fresh Playwright |
 |---|---|---|
 | First navigate | ~1s | ~4s (browser launch) |
 | Subsequent navigate | ~0.5s | ~4s (browser launch) |
@@ -39,10 +39,10 @@ Use trogocytosis when you have sequential browser operations. The persistent ses
 - State corruption (site behaving weirdly)
 - Switching between drastically different auth contexts
 
-To restart: stop the MCP server and restart it. `uvx trogocytosis` kills the previous instance and launches fresh.
+To restart: close the backing `agent-browser` session, then run the next `trogocytosis` command.
 
 ## Do not
 
-- **Don't assume cross-session state.** Every new MCP session starts fresh.
-- **Don't mix personas** in the same session — cookies from domain A bleed into domain B if you don't clear them.
-- **Don't rely on the current tab** — always pass URLs to `navigate` rather than assuming where you left off.
+- **Don't assume cross-host state.** `TROGOCYTOSIS_HOST=mac` and local execution use different browser state.
+- **Don't mix personas** in the same session - cookies from domain A can bleed into domain B if you don't clear them.
+- **Don't rely on the current tab** - always pass URLs to `trogocytosis navigate` rather than assuming where you left off.

@@ -1,4 +1,4 @@
-"""Core browser API — navigate, snapshot, click, fill, eval, screenshot."""
+"""Core browser API - navigate, snapshot, click, fill, eval, screenshot."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def click(selector: str) -> dict[str, bool]:
 
 
 def fill(selector: str, value: str) -> dict[str, bool]:
-    """Fill form field — clears first, then types value."""
+    """Fill form field - clears first, then types value."""
     _agent_browser.run(["fill", selector, ""])
     ok, _ = _agent_browser.run(["fill", selector, value])
     return {"success": ok}

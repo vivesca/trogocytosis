@@ -118,3 +118,28 @@ def test_inject_custom_bridge_host():
         inject("github.com", bridge_host="myhost:8080")
 
     mock_extract.assert_called_once_with("github.com", "myhost:8080")
+
+
+def test_op_lookup_uses_remote_host(monkeypatch):
+    """1Password lookup runs on TROGOCYTOSIS_HOST when set."""
+    from trogocytosis.cookies import _op_lookup
+
+    monkeypatch.setenv("TROGOCYTOSIS_HOST", "mac")
+    items = [{"id": "item-1", "urls": [{"href": "https://linkedin.com/login"}]}]
+
+    def mock_run(args, **kwargs):
+        if args == ["ssh", "mac", "command", "-v", "op"]:
+            return MagicMock(returncode=0, stdout="/usr/bin/op\n", stderr="")
+        if args == ["ssh", "mac", "op", "item", "list", "--vault", "Agents", "--format=json"]:
+            return MagicMock(returncode=0, stdout=json.dumps(items), stderr="")
+        if "--fields" in args:
+            field = args[args.index("--fields") + 1]
+            value = "terry@example.com" if field == "username" else "secret"
+            return MagicMock(returncode=0, stdout=value, stderr="")
+        raise AssertionError(args)
+
+    with patch("subprocess.run", side_effect=mock_run) as run:
+        result = _op_lookup("linkedin.com")
+
+    assert result == {"username": "terry@example.com", "password": "secret"}
+    assert all(call.args[0][:2] == ["ssh", "mac"] for call in run.call_args_list)

@@ -1,6 +1,6 @@
 ---
 name: auth-wall-recovery
-description: Use when trogocytosis hits an authentication wall or login redirect — recover by transferring cookies from the host browser instead of automating login forms
+description: Use when trogocytosis hits an authentication wall or login redirect - recover by transferring cookies from the host browser instead of automating login forms
 ---
 
 # Auth wall recovery (trogocytosis)
@@ -9,9 +9,9 @@ When you navigate to a page and hit a login wall, authentication redirect, or 40
 
 ## Recovery sequence
 
-1. `browser_check_auth()` — confirm the page is requiring auth (returns `authenticated: false` if URL contains login/signin/auth/sso)
-2. `browser_inject_cookies(domain="example.com")` — import cookies from the host browser (Chrome, Arc, Firefox) where you're already logged in
-3. `browser_navigate(url)` — retry the original URL with the transferred session
+1. `trogocytosis check-auth --json-output` - confirm the page is requiring auth (returns `authenticated: false` if URL contains login/signin/auth/sso)
+2. `trogocytosis inject-cookies example.com` - import cookies from the host browser where you're already logged in
+3. `trogocytosis navigate <url>` - retry the original URL with the transferred session
 
 ## Why this works
 
@@ -25,7 +25,7 @@ trogocytosis borrows existing browser sessions via cookie extraction from the ho
 
 ## Signs you need this skill
 
-- `check_auth()` returns `authenticated: false`
+- `trogocytosis check-auth --json-output` returns `authenticated: false`
 - Page title is "Sign in" or "Log in"
 - URL contains `/login`, `/auth`, `/sso`
 - Content mentions "please sign in to continue"

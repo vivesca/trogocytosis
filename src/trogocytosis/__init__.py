@@ -1,3 +1,3 @@
-"""trogocytosis -- persistent browser MCP server with credential transfer and stealth fallback."""
+"""trogocytosis - browser automation CLI with credential transfer and stealth."""
 
-__version__ = "0.7.0"
+__version__ = "0.9.0"

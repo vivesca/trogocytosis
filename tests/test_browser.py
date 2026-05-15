@@ -3,13 +3,12 @@
 import subprocess
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 def test_import():
     """Package imports without error."""
     import trogocytosis
-    assert trogocytosis.__version__ == "0.7.0"
+
+    assert trogocytosis.__version__ == "0.9.0"
 
 
 def test_agent_browser_wrapper_navigate():
@@ -45,33 +44,38 @@ def test_agent_browser_wrapper_failure():
         assert ok is False
 
 
-def test_fallback_to_playwright():
-    """Falls back to Playwright when agent-browser not installed."""
+def test_remote_host_uses_ssh_prefix(monkeypatch):
+    """Uses SSH transport when TROGOCYTOSIS_HOST is set."""
     from trogocytosis._agent_browser import run
 
+    monkeypatch.setenv("TROGOCYTOSIS_HOST", "mac")
     with (
         patch("trogocytosis._agent_browser._has_agent_browser", return_value=False),
-        patch("trogocytosis._agent_browser._has_playwright", return_value=True),
-        patch("trogocytosis._playwright.run") as mock_pw,
+        patch("subprocess.run") as mock_run,
     ):
-        mock_pw.return_value = (True, "pw result")
+        mock_run.return_value = MagicMock(stdout="remote result", stderr="", returncode=0)
         ok, output = run(["open", "https://example.com"])
         assert ok is True
-        assert output == "pw result"
-        mock_pw.assert_called_once_with(["open", "https://example.com"])
+        assert output == "remote result"
+        assert mock_run.call_args[0][0] == [
+            "ssh",
+            "mac",
+            "agent-browser",
+            "open",
+            "https://example.com",
+        ]
 
 
-def test_no_backend_error():
-    """Returns helpful error when neither backend available."""
+def test_no_backend_error(monkeypatch):
+    """Returns helpful error when neither local nor remote CLI is available."""
     from trogocytosis._agent_browser import run
 
-    with (
-        patch("trogocytosis._agent_browser._has_agent_browser", return_value=False),
-        patch("trogocytosis._agent_browser._has_playwright", return_value=False),
-    ):
+    monkeypatch.delenv("TROGOCYTOSIS_HOST", raising=False)
+    with patch("trogocytosis._agent_browser._has_agent_browser", return_value=False):
         ok, output = run(["open", "https://example.com"])
         assert ok is False
-        assert "No browser backend found" in output
+        assert "agent-browser not found" in output
+        assert "TROGOCYTOSIS_HOST" in output
 
 
 def test_navigate_returns_title_and_url():

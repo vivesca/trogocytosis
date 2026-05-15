@@ -1,4 +1,4 @@
-"""CLI interface — cyclopts commands wrapping the same browser/cookies/stealth modules."""
+"""CLI interface - cyclopts commands wrapping browser/cookies/stealth modules."""
 
 from __future__ import annotations
 
@@ -9,7 +9,10 @@ import cyclopts
 
 from trogocytosis import browser, cookies, stealth
 
-app = cyclopts.App(name="trogocytosis", help="Browser automation with credential transfer and stealth.")
+app = cyclopts.App(
+    name="trogocytosis",
+    help="Browser automation with credential transfer and stealth.",
+)
 
 
 @app.command
@@ -33,7 +36,12 @@ def snapshot(*, json_output: bool = False) -> None:
 
 
 @app.command
-def screenshot(path: str = "/tmp/screenshot.png", *, device: str = "", json_output: bool = False) -> None:
+def screenshot(
+    path: str = "/tmp/screenshot.png",
+    *,
+    device: str = "",
+    json_output: bool = False,
+) -> None:
     """Capture PNG screenshot."""
     result = browser.screenshot(path, device)
     if json_output:
@@ -75,9 +83,15 @@ def eval_js(js: str, *, json_output: bool = False) -> None:
 
 
 @app.command(name="inject-cookies")
-def inject_cookies(domain: str, *, browser_name: str = "chrome", json_output: bool = False) -> None:
+def inject_cookies(
+    domain: str,
+    *,
+    browser_name: str = "chrome",
+    bridge_host: str = "mac:7743",
+    json_output: bool = False,
+) -> None:
     """Import cookies from host browser for a domain."""
-    result = cookies.inject(domain, browser_name)
+    result = cookies.inject(domain, browser_name, bridge_host=bridge_host)
     if json_output:
         print(json.dumps(result))
     else:
@@ -121,8 +135,6 @@ def apply_stealth(*, json_output: bool = False) -> None:
         print(json.dumps(result))
     else:
         print(f"Applied {result['applied']} patches, UA: {result['ua']}")
-
-
 
 
 def main() -> None:
