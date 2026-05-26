@@ -120,7 +120,15 @@ class TestRunCli(unittest.TestCase):
         cmd = mock_popen.call_args[0][0]
         self.assertEqual(
             cmd,
-            ["agent-browser", "--session", _DEFAULT_SESSION, "navigate", "https://example.com"],
+            [
+                "agent-browser",
+                "--session",
+                _DEFAULT_SESSION,
+                "--headed",
+                "false",
+                "navigate",
+                "https://example.com",
+            ],
         )
         env = mock_popen.call_args[1]["env"]
         self.assertNotIn("AGENT_BROWSER_HEADED", env)
@@ -135,7 +143,16 @@ class TestRunCli(unittest.TestCase):
         cmd = mock_popen.call_args[0][0]
         self.assertEqual(
             cmd,
-            ["ssh", "mac", "agent-browser", "--session", _DEFAULT_SESSION, "snapshot"],
+            [
+                "ssh",
+                "mac",
+                "agent-browser",
+                "--session",
+                _DEFAULT_SESSION,
+                "--headed",
+                "false",
+                "snapshot",
+            ],
         )
 
     @patch.dict(os.environ, {}, clear=True)
@@ -154,21 +171,64 @@ class TestRunCli(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("exit code 2", out)
 
-    @patch.dict(os.environ, {"AGENT_BROWSER_HEADED": "1"}, clear=True)
+    @patch.dict(
+        os.environ,
+        {
+            "AGENT_BROWSER_HEADED": "1",
+            "AGENT_BROWSER_PROFILE": "/tmp/profile",
+            "AGENT_BROWSER_EXTENSIONS": "/tmp/ext",
+        },
+        clear=True,
+    )
     @patch("subprocess.Popen")
-    def test_headed_env_stripped_for_normal_commands(self, mock_popen):
+    def test_ambient_browser_env_stripped_for_normal_commands(self, mock_popen):
         mock_popen.return_value = _mock_proc(stdout="ok")
         _run_cli(["snapshot"])
         env = mock_popen.call_args[1]["env"]
         self.assertNotIn("AGENT_BROWSER_HEADED", env)
+        self.assertNotIn("AGENT_BROWSER_PROFILE", env)
+        self.assertNotIn("AGENT_BROWSER_EXTENSIONS", env)
+        cmd = mock_popen.call_args[0][0]
+        self.assertIn("--headed", cmd)
+        self.assertEqual(cmd[cmd.index("--headed") + 1], "false")
 
-    @patch.dict(os.environ, {"AGENT_BROWSER_HEADED": "1"}, clear=True)
+    @patch.dict(
+        os.environ,
+        {
+            "AGENT_BROWSER_HEADED": "1",
+            "AGENT_BROWSER_PROFILE": "/tmp/profile",
+            "AGENT_BROWSER_EXTENSIONS": "/tmp/ext",
+        },
+        clear=True,
+    )
     @patch("subprocess.Popen")
-    def test_headed_env_preserved_for_headed_commands(self, mock_popen):
+    def test_ambient_browser_env_preserved_for_headed_commands(self, mock_popen):
         mock_popen.return_value = _mock_proc(stdout="ok")
         _run_cli(["open", "https://example.com", "--headed"])
         env = mock_popen.call_args[1]["env"]
         self.assertEqual(env["AGENT_BROWSER_HEADED"], "1")
+        self.assertEqual(env["AGENT_BROWSER_PROFILE"], "/tmp/profile")
+        self.assertEqual(env["AGENT_BROWSER_EXTENSIONS"], "/tmp/ext")
+        cmd = mock_popen.call_args[0][0]
+        self.assertNotIn("false", cmd[: cmd.index("open")])
+
+    @patch.dict(os.environ, {"AGENT_BROWSER_HEADED": "1"}, clear=True)
+    @patch("subprocess.Popen")
+    def test_headed_equals_option_is_explicit(self, mock_popen):
+        mock_popen.return_value = _mock_proc(stdout="ok")
+        _run_cli(["open", "https://example.com", "--headed=false"])
+        cmd = mock_popen.call_args[0][0]
+        self.assertEqual(
+            cmd,
+            [
+                "agent-browser",
+                "--session",
+                _DEFAULT_SESSION,
+                "open",
+                "https://example.com",
+                "--headed=false",
+            ],
+        )
 
     @patch.dict(os.environ, {"TROGOCYTOSIS_SESSION": "my-session"}, clear=True)
     @patch("subprocess.Popen")

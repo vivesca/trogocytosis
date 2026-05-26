@@ -35,6 +35,7 @@ def test_agent_browser_wrapper_navigate():
         assert cmd == [
             "agent-browser",
             "--session", "trogocytosis",
+            "--headed", "false",
             "open", "https://example.com",
         ]
 
@@ -69,6 +70,7 @@ def test_remote_host_uses_ssh_prefix(monkeypatch):
             "ssh", "mac",
             "agent-browser",
             "--session", "trogocytosis",
+            "--headed", "false",
             "open", "https://example.com",
         ]
 

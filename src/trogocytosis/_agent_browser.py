@@ -11,6 +11,17 @@ import subprocess
 _DEFAULT_SESSION = "trogocytosis"
 _DEFAULT_TIMEOUT = 45
 
+_HEADLESS_ENV_KEYS = (
+    "AGENT_BROWSER_HEADED",
+    "AGENT_BROWSER_PROFILE",
+    "AGENT_BROWSER_EXTENSIONS",
+)
+
+
+def _is_explicit_headed(args: list[str]) -> bool:
+    """True when args explicitly request a headed browser."""
+    return any(a == "--headed" or a.startswith("--headed=") for a in args)
+
 
 def _ssh_prefix() -> list[str]:
     """Return SSH prefix if TROGOCYTOSIS_HOST is set, else empty."""
@@ -39,6 +50,7 @@ def _session_name() -> str:
     return os.environ.get("TROGOCYTOSIS_SESSION", "").strip() or _DEFAULT_SESSION
 
 
+
 def run(args: list[str]) -> tuple[bool, str]:
     """Run agent-browser locally, or over SSH when TROGOCYTOSIS_HOST is set."""
     if _has_agent_browser() or _ssh_prefix():
@@ -54,11 +66,16 @@ def _run_cli(args: list[str]) -> tuple[bool, str]:
     session = _session_name()
     timeout = _parse_timeout()
     prefix = _ssh_prefix()
-    cmd = [*prefix, "agent-browser", "--session", session, *args]
+    explicit_headed = _is_explicit_headed(args)
+    cmd = [*prefix, "agent-browser", "--session", session]
+    if not explicit_headed:
+        cmd.extend(["--headed", "false"])
+    cmd.extend(args)
 
     env = dict(os.environ)
-    if "--headed" not in args:
-        env.pop("AGENT_BROWSER_HEADED", None)
+    if not explicit_headed:
+        for key in _HEADLESS_ENV_KEYS:
+            env.pop(key, None)
 
     try:
         proc = subprocess.Popen(
