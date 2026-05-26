@@ -1,11 +1,11 @@
 ---
-name: auth-wall-recovery
-description: Use when trogocytosis hits an authentication wall or login redirect - recover by transferring cookies from the host browser instead of automating login forms
+name: surface-marker-transfer
+description: Use when trogocytosis hits an authentication wall or login redirect - recover by transferring cookies from the host browser instead of automating login forms (formerly auth-wall-recovery)
 ---
 
-# Auth wall recovery (trogocytosis)
+# Surface marker transfer (trogocytosis auth wall recovery)
 
-Follow `browser-session` for lifecycle rules. Auth recovery should return to the private headless session after any explicit login flow.
+Follow `immunological-synapse` for lifecycle rules. Auth recovery should return to the private headless session after any explicit login flow.
 
 When you navigate to a page and hit a login wall, authentication redirect, or 403 on a page that should be accessible, use the credential transfer pattern.
 
@@ -24,7 +24,7 @@ trogocytosis borrows existing browser sessions via cookie extraction from the ho
 - **Do not automate login forms.** trogocytosis is designed to borrow sessions, not create them. Automating logins triggers bot detection on most sites.
 - **Do not retry with fresh navigation.** If cookies are expired, re-login in your real browser and repeat step 2.
 - **Do not use stealth mode for this.** Stealth is for anti-bot pages, not auth walls.
-- **Do not re-state lifecycle policy here.** `browser-session` is the source of truth for headed/profile/session behavior.
+- **Do not re-state lifecycle policy here.** `immunological-synapse` is the source of truth for headed/profile/session behavior.
 
 ## Signs you need this skill
 

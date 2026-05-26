@@ -1,11 +1,11 @@
 ---
-name: browser-extraction
-description: Use when extracting structured content (headlines, article text, data tables) from a page with trogocytosis - combines navigate + snapshot efficiently
+name: invagination
+description: Use when extracting structured content (headlines, article text, data tables) from a page with trogocytosis - combines navigate + snapshot efficiently (formerly browser-extraction)
 ---
 
-# Browser extraction workflow (trogocytosis)
+# Invagination (trogocytosis extraction workflow)
 
-Follow `browser-session` for lifecycle rules before extracting content.
+Follow `immunological-synapse` for lifecycle rules before extracting content.
 
 Extract content from pages using the cheapest-first pattern.
 
@@ -33,4 +33,4 @@ The accessibility tree is what screen readers see. It's structured, already pars
 - **Don't use eval as the default.** It's slower and gives raw HTML/text without structure.
 - **Don't screenshot for content extraction.** Screenshots are for visual debugging, not data extraction.
 - **Don't call snapshot multiple times.** Refs become stale after actions; re-snapshot only after clicks/fills.
-- **Don't re-state lifecycle policy here.** `browser-session` is the source of truth for headed/profile/session behavior.
+- **Don't re-state lifecycle policy here.** `immunological-synapse` is the source of truth for headed/profile/session behavior.

@@ -1,11 +1,11 @@
 ---
-name: browser-stealth
-description: Use when a page is actively blocking automated access (Cloudflare challenge, 403, empty content, bot detection) - apply trogocytosis stealth patches
+name: glycocalyx
+description: Use when a page is actively blocking automated access (Cloudflare challenge, 403, empty content, bot detection) - apply trogocytosis stealth patches (formerly browser-stealth)
 ---
 
-# Browser stealth mode (trogocytosis)
+# Glycocalyx (trogocytosis stealth)
 
-Follow `browser-session` for lifecycle rules before applying stealth.
+Follow `immunological-synapse` for lifecycle rules before applying stealth.
 
 Apply stealth only when bot detection is blocking you. It's not a default; it adds overhead and can break legitimate interactions.
 
@@ -18,7 +18,7 @@ Signs you NEED stealth:
 - Snapshot shows only bot-check UI
 
 Signs you DON'T need stealth:
-- Authenticated pages (use `auth-wall-recovery` instead)
+- Authenticated pages (use `surface-marker-transfer` instead)
 - Normal public pages that load fine
 - Auth redirects (different problem)
 

@@ -204,10 +204,10 @@ def test_install_skills_to_custom_path(tmp_path):
 
     installed = install_skills(tmp_path, force=True)
     assert len(installed) >= 4
-    assert "auth-wall-recovery" in installed
-    assert "browser-extraction" in installed
-    assert "browser-stealth" in installed
-    assert "browser-session" in installed
+    assert "surface-marker-transfer" in installed
+    assert "invagination" in installed
+    assert "glycocalyx" in installed
+    assert "immunological-synapse" in installed
 
     # Verify files actually exist with proper frontmatter
     for name in installed:

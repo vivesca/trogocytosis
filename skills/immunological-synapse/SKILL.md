@@ -1,11 +1,11 @@
 ---
-name: browser-session
-description: Canonical lifecycle substrate for trogocytosis browser automation - private session, headless defaults, cookies, state, cleanup, and env isolation across CLI calls
+name: immunological-synapse
+description: Canonical lifecycle substrate for trogocytosis browser automation - private session, headless defaults, cookies, state, cleanup, and env isolation across CLI calls (formerly browser-session)
 ---
 
-# Browser session model (trogocytosis)
+# Immunological synapse (trogocytosis session model)
 
-Load this skill first for any trogocytosis browser workflow. Extraction, auth recovery, and stealth all inherit these rules.
+Load this skill first for any trogocytosis browser workflow. Invagination, surface-marker-transfer, and glycocalyx all inherit these rules.
 
 ## Canonical rules
 
