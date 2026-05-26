@@ -1,7 +1,15 @@
 """Tests for trogocytosis browser module."""
 
-import subprocess
 from unittest.mock import MagicMock, patch
+
+
+def _mock_proc(stdout="", stderr="", returncode=0):
+    """Create a mock Popen process that behaves like a successful run."""
+    proc = MagicMock()
+    proc.communicate.return_value = (stdout, stderr)
+    proc.returncode = returncode
+    proc.pid = 99999
+    return proc
 
 
 def test_import():
@@ -12,34 +20,34 @@ def test_import():
 
 
 def test_agent_browser_wrapper_navigate():
-    """_agent_browser.run calls subprocess with correct args when CLI available."""
+    """_agent_browser.run calls Popen with --session trogocytosis when CLI available."""
     from trogocytosis._agent_browser import run
 
     with (
         patch("trogocytosis._agent_browser._has_agent_browser", return_value=True),
-        patch("subprocess.run") as mock_run,
+        patch("subprocess.Popen") as mock_popen,
     ):
-        mock_run.return_value = MagicMock(
-            stdout="Page loaded", stderr="", returncode=0
-        )
+        mock_popen.return_value = _mock_proc(stdout="Page loaded")
         ok, output = run(["open", "https://example.com"])
         assert ok is True
         assert "Page loaded" in output
-        mock_run.assert_called_once()
-        args = mock_run.call_args[0][0]
-        assert "agent-browser" in args[0]
-        assert args[1:] == ["open", "https://example.com"]
+        cmd = mock_popen.call_args[0][0]
+        assert cmd == [
+            "agent-browser",
+            "--session", "trogocytosis",
+            "open", "https://example.com",
+        ]
 
 
 def test_agent_browser_wrapper_failure():
-    """_agent_browser.run handles subprocess failure."""
+    """_agent_browser.run handles non-zero returncode."""
     from trogocytosis._agent_browser import run
 
     with (
         patch("trogocytosis._agent_browser._has_agent_browser", return_value=True),
-        patch("subprocess.run") as mock_run,
+        patch("subprocess.Popen") as mock_popen,
     ):
-        mock_run.side_effect = subprocess.CalledProcessError(1, "agent-browser")
+        mock_popen.return_value = _mock_proc(stderr="error", returncode=1)
         ok, output = run(["open", "https://example.com"])
         assert ok is False
 
@@ -51,18 +59,17 @@ def test_remote_host_uses_ssh_prefix(monkeypatch):
     monkeypatch.setenv("TROGOCYTOSIS_HOST", "mac")
     with (
         patch("trogocytosis._agent_browser._has_agent_browser", return_value=False),
-        patch("subprocess.run") as mock_run,
+        patch("subprocess.Popen") as mock_popen,
     ):
-        mock_run.return_value = MagicMock(stdout="remote result", stderr="", returncode=0)
+        mock_popen.return_value = _mock_proc(stdout="remote result")
         ok, output = run(["open", "https://example.com"])
         assert ok is True
         assert output == "remote result"
-        assert mock_run.call_args[0][0] == [
-            "ssh",
-            "mac",
+        assert mock_popen.call_args[0][0] == [
+            "ssh", "mac",
             "agent-browser",
-            "open",
-            "https://example.com",
+            "--session", "trogocytosis",
+            "open", "https://example.com",
         ]
 
 
@@ -137,6 +144,17 @@ def test_eval_returns_result():
         mock_run.return_value = (True, "42")
         result = evaluate("1 + 41")
         assert result["result"] == "42"
+
+
+def test_text_returns_body_dict():
+    """browser.text returns dict with body text via get text body."""
+    from trogocytosis.browser import text
+
+    with patch("trogocytosis._agent_browser.run") as mock_run:
+        mock_run.return_value = (True, "Hello World\nWelcome")
+        result = text()
+        assert result == {"text": "Hello World\nWelcome"}
+        mock_run.assert_called_once_with(["get", "text", "body"])
 
 
 def test_inject_cookies_extracts_and_injects():

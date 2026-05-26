@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import shutil
+import signal
 import subprocess
+
+_DEFAULT_SESSION = "trogocytosis"
+_DEFAULT_TIMEOUT = 45
 
 
 def _ssh_prefix() -> list[str]:
@@ -15,6 +20,23 @@ def _ssh_prefix() -> list[str]:
 
 def _has_agent_browser() -> bool:
     return shutil.which("agent-browser") is not None
+
+
+def _parse_timeout() -> int:
+    """Parse TROGOCYTOSIS_TIMEOUT; invalid or non-positive falls back to default."""
+    raw = os.environ.get("TROGOCYTOSIS_TIMEOUT", "").strip()
+    if not raw:
+        return _DEFAULT_TIMEOUT
+    try:
+        val = int(raw)
+        return val if val > 0 else _DEFAULT_TIMEOUT
+    except (ValueError, TypeError):
+        return _DEFAULT_TIMEOUT
+
+
+def _session_name() -> str:
+    """Return session name from TROGOCYTOSIS_SESSION or default."""
+    return os.environ.get("TROGOCYTOSIS_SESSION", "").strip() or _DEFAULT_SESSION
 
 
 def run(args: list[str]) -> tuple[bool, str]:
@@ -29,21 +51,48 @@ def run(args: list[str]) -> tuple[bool, str]:
 
 def _run_cli(args: list[str]) -> tuple[bool, str]:
     """Run agent-browser CLI command."""
+    session = _session_name()
+    timeout = _parse_timeout()
+    prefix = _ssh_prefix()
+    cmd = [*prefix, "agent-browser", "--session", session, *args]
+
+    env = dict(os.environ)
+    if "--headed" not in args:
+        env.pop("AGENT_BROWSER_HEADED", None)
+
     try:
-        res = subprocess.run(
-            [*_ssh_prefix(), "agent-browser", *args],
-            capture_output=True,
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            check=True,
-            timeout=300,
+            env=env,
+            start_new_session=True,
         )
-        return True, res.stdout.strip()
-    except subprocess.CalledProcessError as exc:
-        return False, exc.stderr.strip() if exc.stderr else str(exc)
-    except subprocess.TimeoutExpired as exc:
-        output = exc.stderr or exc.stdout or str(exc)
-        if isinstance(output, bytes):
-            output = output.decode(errors="replace")
-        return False, str(output).strip()
+        stdout, stderr = proc.communicate(timeout=timeout)
+        if proc.returncode == 0:
+            return True, stdout.strip()
+        return False, (stderr.strip() if stderr else f"exit code {proc.returncode}")
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+        except (ProcessLookupError, OSError):
+            pass
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except (ProcessLookupError, OSError):
+                pass
+            proc.wait(timeout=5)
+        with contextlib.suppress(OSError, subprocess.TimeoutExpired):
+            subprocess.run(
+                [*prefix, "agent-browser", "--session", session, "close"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+        return False, f"agent-browser timed out after {timeout}s"
     except OSError as exc:
         return False, str(exc)

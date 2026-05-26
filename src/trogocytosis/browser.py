@@ -50,6 +50,12 @@ def evaluate(js: str) -> dict[str, str]:
     return {"result": result}
 
 
+def text() -> dict[str, str]:
+    """Extract visible body text from the current page."""
+    _, body = _agent_browser.run(["get", "text", "body"])
+    return {"text": body}
+
+
 def check_auth() -> dict[str, Any]:
     """Check if current page requires authentication."""
     _, url = _agent_browser.run(["get", "url"])
