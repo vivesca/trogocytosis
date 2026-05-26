@@ -22,6 +22,7 @@ trogocytosis borrows existing browser sessions via cookie extraction from the ho
 - **Do not automate login forms.** trogocytosis is designed to borrow sessions, not create them. Automating logins triggers bot detection on most sites.
 - **Do not retry with fresh navigation.** If cookies are expired, re-login in your real browser and repeat step 2.
 - **Do not use stealth mode for this.** Stealth is for anti-bot pages, not auth walls.
+- **Do not use headed mode for extraction.** Headed/profile/extension environment is preserved only for intentional login flows; normal recovery should return to the private headless session.
 
 ## Signs you need this skill
 

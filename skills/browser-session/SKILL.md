@@ -5,7 +5,9 @@ description: Use when understanding or managing trogocytosis's persistent browse
 
 # Browser session model (trogocytosis)
 
-trogocytosis reuses the `agent-browser` session across CLI calls. This avoids cold starts and keeps page state available while an agent performs a sequence of browser actions.
+trogocytosis uses a private `agent-browser` session named `trogocytosis` across CLI calls. This avoids cold starts and keeps page state available while an agent performs a sequence of browser actions, without colliding with the default `agent-browser` session.
+
+Normal commands are headless even if the parent shell has `AGENT_BROWSER_HEADED=true`. trogocytosis also strips ambient `AGENT_BROWSER_PROFILE` and `AGENT_BROWSER_EXTENSIONS` for non-headed commands so local dev/browser settings do not leak into automation.
 
 ## What persists across calls
 
@@ -39,10 +41,13 @@ Use trogocytosis when you have sequential browser operations. The persistent ses
 - State corruption (site behaving weirdly)
 - Switching between drastically different auth contexts
 
-To restart: close the backing `agent-browser` session, then run the next `trogocytosis` command.
+To restart only this browser: `agent-browser --session trogocytosis close`, then run the next `trogocytosis` command. Do not use `close --all`.
+
+Use `TROGOCYTOSIS_SESSION=<name>` when you intentionally need separate personas or parallel workflows. Use `TROGOCYTOSIS_TIMEOUT=<seconds>` only when a known-slow page needs longer than the default bounded wait.
 
 ## Do not
 
 - **Don't assume cross-host state.** `TROGOCYTOSIS_HOST=mac` and local execution use different browser state.
 - **Don't mix personas** in the same session - cookies from domain A can bleed into domain B if you don't clear them.
 - **Don't rely on the current tab** - always pass URLs to `trogocytosis navigate` rather than assuming where you left off.
+- **Don't set headed/profile/extension env vars** for normal extraction. Use headed mode only for intentional login flows.
