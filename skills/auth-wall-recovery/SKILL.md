@@ -5,6 +5,8 @@ description: Use when trogocytosis hits an authentication wall or login redirect
 
 # Auth wall recovery (trogocytosis)
 
+Follow `browser-session` for lifecycle rules. Auth recovery should return to the private headless session after any explicit login flow.
+
 When you navigate to a page and hit a login wall, authentication redirect, or 403 on a page that should be accessible, use the credential transfer pattern.
 
 ## Recovery sequence
@@ -22,7 +24,7 @@ trogocytosis borrows existing browser sessions via cookie extraction from the ho
 - **Do not automate login forms.** trogocytosis is designed to borrow sessions, not create them. Automating logins triggers bot detection on most sites.
 - **Do not retry with fresh navigation.** If cookies are expired, re-login in your real browser and repeat step 2.
 - **Do not use stealth mode for this.** Stealth is for anti-bot pages, not auth walls.
-- **Do not use headed mode for extraction.** Headed/profile/extension environment is preserved only for intentional login flows; normal recovery should return to the private headless session.
+- **Do not re-state lifecycle policy here.** `browser-session` is the source of truth for headed/profile/session behavior.
 
 ## Signs you need this skill
 

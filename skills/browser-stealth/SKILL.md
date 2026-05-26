@@ -5,6 +5,8 @@ description: Use when a page is actively blocking automated access (Cloudflare c
 
 # Browser stealth mode (trogocytosis)
 
+Follow `browser-session` for lifecycle rules before applying stealth.
+
 Apply stealth only when bot detection is blocking you. It's not a default; it adds overhead and can break legitimate interactions.
 
 ## When to apply

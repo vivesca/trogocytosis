@@ -1,13 +1,21 @@
 ---
 name: browser-session
-description: Use when understanding or managing trogocytosis's persistent browser session - cookies, state, and lifecycle across multiple CLI calls
+description: Canonical lifecycle substrate for trogocytosis browser automation - private session, headless defaults, cookies, state, cleanup, and env isolation across CLI calls
 ---
 
 # Browser session model (trogocytosis)
 
-trogocytosis uses a private `agent-browser` session named `trogocytosis` across CLI calls. This avoids cold starts and keeps page state available while an agent performs a sequence of browser actions, without colliding with the default `agent-browser` session.
+Load this skill first for any trogocytosis browser workflow. Extraction, auth recovery, and stealth all inherit these rules.
 
-Normal commands are headless even if the parent shell has `AGENT_BROWSER_HEADED=true`. trogocytosis also strips ambient `AGENT_BROWSER_PROFILE` and `AGENT_BROWSER_EXTENSIONS` for non-headed commands so local dev/browser settings do not leak into automation.
+## Canonical rules
+
+- Use the private `agent-browser` session named `trogocytosis`.
+- Normal commands are headless: `agent-browser --session trogocytosis --headed false ...`.
+- Non-headed commands strip `AGENT_BROWSER_HEADED`, `AGENT_BROWSER_PROFILE`, and `AGENT_BROWSER_EXTENSIONS`.
+- Preserve headed/profile/extension environment only for explicit headed login flows.
+- Close only this session: `agent-browser --session trogocytosis close`. Never use `close --all`.
+- Use `TROGOCYTOSIS_SESSION=<name>` only for intentional separate personas or parallel workflows.
+- Use `TROGOCYTOSIS_TIMEOUT=<seconds>` only for known-slow pages.
 
 ## What persists across calls
 
@@ -41,9 +49,7 @@ Use trogocytosis when you have sequential browser operations. The persistent ses
 - State corruption (site behaving weirdly)
 - Switching between drastically different auth contexts
 
-To restart only this browser: `agent-browser --session trogocytosis close`, then run the next `trogocytosis` command. Do not use `close --all`.
-
-Use `TROGOCYTOSIS_SESSION=<name>` when you intentionally need separate personas or parallel workflows. Use `TROGOCYTOSIS_TIMEOUT=<seconds>` only when a known-slow page needs longer than the default bounded wait.
+To restart only this browser: `agent-browser --session trogocytosis close`, then run the next `trogocytosis` command.
 
 ## Do not
 
