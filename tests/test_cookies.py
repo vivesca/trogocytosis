@@ -261,14 +261,25 @@ def test_doctor_comet_reports_counts_without_cookie_values():
 
     assert result["domain"] == "linkedin.com"
     assert result["browser"] == "comet"
+    assert "bridge_host" not in result
     key_lookup.assert_called_once_with("Comet Safe Storage", "Comet")
     comet_stage = next(stage for stage in result["stages"] if stage["name"] == "comet_extract")
     assert comet_stage["ok"] is True
     assert comet_stage["count"] == 1
-    assert "li_at" not in json.dumps(result)
-    assert "secret-token" not in json.dumps(result)
-    assert "secret bridge text" not in json.dumps(result)
-    assert "secret pcc text" not in json.dumps(result)
+    assert comet_stage["detail"] == "counted"
+    storage_stage = next(
+        stage for stage in result["stages"] if stage["name"] == "comet_safe_storage_key"
+    )
+    assert storage_stage["ok"] is True
+    assert storage_stage["detail"] == "available"
+    allowed_details = {"normalized", "counted", "available", "missing", "failed", "ok"}
+    for stage in result["stages"]:
+        assert stage.get("detail") in allowed_details
+    blob = json.dumps(result)
+    assert "li_at" not in blob
+    assert "secret-token" not in blob
+    assert "secret bridge text" not in blob
+    assert "secret pcc text" not in blob
 
 
 def test_doctor_reports_porta_availability_without_requiring_porta():
@@ -281,7 +292,13 @@ def test_doctor_reports_porta_availability_without_requiring_porta():
                 result = cookies.doctor("example.com")
 
     stage = next(stage for stage in result["stages"] if stage["name"] == "porta_available")
-    assert stage == {"name": "porta_available", "ok": False, "duration_ms": 0, "available": False}
+    assert stage == {
+        "name": "porta_available",
+        "ok": False,
+        "duration_ms": 0,
+        "available": False,
+        "detail": "missing",
+    }
 
 
 def test_doctor_reports_exception_class_without_message():
@@ -298,3 +315,6 @@ def test_doctor_reports_exception_class_without_message():
     assert "RuntimeError" in text
     assert "contains-secret" not in text
     assert "also-secret" not in text
+    for stage in result["stages"]:
+        if stage.get("error"):
+            assert stage["detail"] == "failed"

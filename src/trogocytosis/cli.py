@@ -114,8 +114,12 @@ def doctor(
         print(f"Doctor for {result['domain']} via {result['browser']}")
         for stage in result["stages"]:
             status = "ok" if stage.get("ok") else "fail"
-            suffix = f" count={stage['count']}" if "count" in stage else ""
-            print(f"{status}: {stage['name']} ({stage['duration_ms']}ms){suffix}")
+            bits = [f"{stage['duration_ms']}ms"]
+            if stage.get("error"):
+                bits.append(f"error={stage['error']}")
+            if "count" in stage:
+                bits.append(f"count={stage['count']}")
+            print(f"{status}: {stage['name']} ({', '.join(bits)})")
 
 
 @app.command(name="check-auth")

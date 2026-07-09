@@ -28,11 +28,21 @@ def _redacted_stage(name: str, check: Any) -> dict[str, Any]:
             "name": name,
             "ok": False,
             "duration_ms": round((time.perf_counter() - start) * 1000, 2),
+            "detail": "failed",
             "error": type(exc).__name__,
         }
-    stage = {"name": name, "ok": True, "duration_ms": round((time.perf_counter() - start) * 1000, 2)}
+    duration = round((time.perf_counter() - start) * 1000, 2)
+    stage: dict[str, Any] = {"name": name, "ok": True, "duration_ms": duration}
     if isinstance(result, dict):
         stage.update(result)
+    if "count" in stage:
+        stage["detail"] = "counted"
+    elif stage.get("available") is True:
+        stage["detail"] = "available"
+    elif stage.get("available") is False:
+        stage["detail"] = "missing"
+    else:
+        stage["detail"] = "ok"
     return stage
 
 
@@ -249,7 +259,7 @@ def doctor(
         "name": "normalize_domain",
         "ok": bool(clean_domain),
         "duration_ms": 0,
-        "detail": clean_domain,
+        "detail": "normalized",
     })
 
     if browser == "comet":
@@ -258,7 +268,7 @@ def doctor(
             lambda: {"available": comet_cookie_file.exists()},
         ))
         stages.append(_redacted_stage(
-            "comet_safe_storage",
+            "comet_safe_storage_key",
             lambda: {"available": _macos_safe_storage_key("Comet Safe Storage", "Comet") is not None},
         ))
         stages.append(_redacted_stage(
@@ -271,11 +281,13 @@ def doctor(
         lambda: {"count": len(_extract_via_bridge(clean_domain, bridge_host))},
     ))
     porta_path = shutil.which("porta")
+    porta_available = porta_path is not None
     stages.append({
         "name": "porta_available",
-        "ok": porta_path is not None,
+        "ok": porta_available,
         "duration_ms": 0,
-        "available": porta_path is not None,
+        "available": porta_available,
+        "detail": "available" if porta_available else "missing",
     })
     if porta_path:
         stages.append(_redacted_stage(
@@ -291,7 +303,6 @@ def doctor(
         "success": any(stage.get("ok") and "count" in stage for stage in stages),
         "domain": clean_domain,
         "browser": browser,
-        "bridge_host": bridge_host,
         "stages": stages,
     }
 

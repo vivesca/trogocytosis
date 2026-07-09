@@ -171,14 +171,14 @@ def test_doctor_command_json_output(capsys, mock_cookies):
 
 
 def test_doctor_command_human_output_is_redacted(capsys, mock_cookies):
-    """Human doctor output reports stages and counts only."""
+    """Human doctor output reports stages, counts, and error classes only."""
     mock_cookies.doctor.return_value = {
         "success": False,
         "domain": "linkedin.com",
         "browser": "comet",
         "stages": [
-            {"name": "comet_safe_storage", "ok": False, "duration_ms": 5.0, "error": "ValueError"},
-            {"name": "bridge_extract", "ok": True, "duration_ms": 2.0, "count": 4},
+            {"name": "comet_safe_storage_key", "ok": False, "duration_ms": 5.0, "detail": "failed", "error": "ValueError"},
+            {"name": "bridge_extract", "ok": True, "duration_ms": 2.0, "detail": "counted", "count": 4},
         ],
     }
 
@@ -187,8 +187,9 @@ def test_doctor_command_human_output_is_redacted(capsys, mock_cookies):
 
     assert exc_info.value.code == 0
     captured = capsys.readouterr()
-    assert "comet_safe_storage" in captured.out
+    assert "comet_safe_storage_key" in captured.out
     assert "count=4" in captured.out
+    assert "ValueError" in captured.out
     assert "secret" not in captured.out.lower()
 
 
