@@ -98,6 +98,26 @@ def inject_cookies(
         print(f"Injected {result['count']} cookies for {result['domain']}")
 
 
+@app.command(name="doctor")
+def doctor(
+    domain: str,
+    *,
+    browser_name: str = "chrome",
+    bridge_host: str = "mac:7743",
+    json_output: bool = False,
+) -> None:
+    """Diagnose cookie extraction paths without printing secrets."""
+    result = cookies.doctor(domain, browser_name, bridge_host=bridge_host)
+    if json_output:
+        print(json.dumps(result))
+    else:
+        print(f"Doctor for {result['domain']} via {result['browser']}")
+        for stage in result["stages"]:
+            status = "ok" if stage.get("ok") else "fail"
+            suffix = f" count={stage['count']}" if "count" in stage else ""
+            print(f"{status}: {stage['name']} ({stage['duration_ms']}ms){suffix}")
+
+
 @app.command(name="check-auth")
 def check_auth(*, json_output: bool = False) -> None:
     """Check if current page requires authentication."""

@@ -245,3 +245,56 @@ def test_macos_safe_storage_key_failure_returns_none_without_leaking():
 
     assert key is None
     assert mock_run.call_args.kwargs["capture_output"] is True
+
+
+def test_doctor_comet_reports_counts_without_cookie_values():
+    """Comet doctor reports count and availability without cookie details."""
+    from trogocytosis import cookies
+
+    with patch.object(cookies.Path, "home", return_value=MagicMock(__truediv__=lambda self, other: self, exists=lambda: True)):
+        with patch.object(cookies, "_macos_safe_storage_key", return_value="key") as key_lookup:
+            with patch.object(cookies, "_extract_via_comet", return_value={"li_at": "secret-token"}):
+                with patch.object(cookies, "_extract_via_bridge", side_effect=ConnectionError("secret bridge text")):
+                    with patch.object(cookies.shutil, "which", return_value=None):
+                        with patch.object(cookies, "_extract_via_pycookiecheat", side_effect=RuntimeError("secret pcc text")):
+                            result = cookies.doctor("https://linkedin.com/in/example", browser="Comet")
+
+    assert result["domain"] == "linkedin.com"
+    assert result["browser"] == "comet"
+    key_lookup.assert_called_once_with("Comet Safe Storage", "Comet")
+    comet_stage = next(stage for stage in result["stages"] if stage["name"] == "comet_extract")
+    assert comet_stage["ok"] is True
+    assert comet_stage["count"] == 1
+    assert "li_at" not in json.dumps(result)
+    assert "secret-token" not in json.dumps(result)
+    assert "secret bridge text" not in json.dumps(result)
+    assert "secret pcc text" not in json.dumps(result)
+
+
+def test_doctor_reports_porta_availability_without_requiring_porta():
+    """doctor records porta availability as a redacted stage."""
+    from trogocytosis import cookies
+
+    with patch.object(cookies, "_extract_via_bridge", side_effect=ConnectionError):
+        with patch.object(cookies.shutil, "which", return_value=None):
+            with patch.object(cookies, "_extract_via_pycookiecheat", side_effect=RuntimeError):
+                result = cookies.doctor("example.com")
+
+    stage = next(stage for stage in result["stages"] if stage["name"] == "porta_available")
+    assert stage == {"name": "porta_available", "ok": False, "duration_ms": 0, "available": False}
+
+
+def test_doctor_reports_exception_class_without_message():
+    """doctor reports exception type, not exception text."""
+    from trogocytosis import cookies
+
+    with patch.object(cookies, "_extract_via_bridge", side_effect=ValueError("contains-secret")):
+        with patch.object(cookies.shutil, "which", return_value=None):
+            with patch.object(cookies, "_extract_via_pycookiecheat", side_effect=RuntimeError("also-secret")):
+                result = cookies.doctor("example.com")
+
+    text = json.dumps(result)
+    assert "ValueError" in text
+    assert "RuntimeError" in text
+    assert "contains-secret" not in text
+    assert "also-secret" not in text

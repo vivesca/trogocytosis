@@ -151,6 +151,47 @@ def test_inject_cookies_command(capsys, mock_cookies):
     assert "Injected 5 cookies for example.com" in captured.out
 
 
+def test_doctor_command_json_output(capsys, mock_cookies):
+    """Test doctor command with json output."""
+    expected = {
+        "success": True,
+        "domain": "linkedin.com",
+        "browser": "comet",
+        "stages": [{"name": "comet_extract", "ok": True, "duration_ms": 1.0, "count": 3}],
+    }
+    mock_cookies.doctor.return_value = expected
+
+    with pytest.raises(SystemExit) as exc_info:
+        app(["doctor", "linkedin.com", "--browser-name", "comet", "--json-output"])
+
+    assert exc_info.value.code == 0
+    mock_cookies.doctor.assert_called_once_with("linkedin.com", "comet", bridge_host="mac:7743")
+    captured = capsys.readouterr()
+    assert json.loads(captured.out.strip()) == expected
+
+
+def test_doctor_command_human_output_is_redacted(capsys, mock_cookies):
+    """Human doctor output reports stages and counts only."""
+    mock_cookies.doctor.return_value = {
+        "success": False,
+        "domain": "linkedin.com",
+        "browser": "comet",
+        "stages": [
+            {"name": "comet_safe_storage", "ok": False, "duration_ms": 5.0, "error": "ValueError"},
+            {"name": "bridge_extract", "ok": True, "duration_ms": 2.0, "count": 4},
+        ],
+    }
+
+    with pytest.raises(SystemExit) as exc_info:
+        app(["doctor", "linkedin.com", "--browser-name", "comet"])
+
+    assert exc_info.value.code == 0
+    captured = capsys.readouterr()
+    assert "comet_safe_storage" in captured.out
+    assert "count=4" in captured.out
+    assert "secret" not in captured.out.lower()
+
+
 def test_check_auth_command_authenticated(capsys, mock_browser):
     """Test check-auth command when authenticated."""
     mock_browser.check_auth.return_value = {"authenticated": True, "url": "https://example.com"}

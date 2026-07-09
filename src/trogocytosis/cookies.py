@@ -18,6 +18,24 @@ from trogocytosis import _agent_browser
 DEFAULT_BRIDGE_HOST = os.environ.get("TROGOCYTOSIS_BRIDGE_HOST", "mac:7743")
 
 
+def _redacted_stage(name: str, check: Any) -> dict[str, Any]:
+    """Run a diagnostic stage without exposing secret values or messages."""
+    start = time.perf_counter()
+    try:
+        result = check()
+    except Exception as exc:
+        return {
+            "name": name,
+            "ok": False,
+            "duration_ms": round((time.perf_counter() - start) * 1000, 2),
+            "error": type(exc).__name__,
+        }
+    stage = {"name": name, "ok": True, "duration_ms": round((time.perf_counter() - start) * 1000, 2)}
+    if isinstance(result, dict):
+        stage.update(result)
+    return stage
+
+
 def _normalize_domain(value: str) -> str:
     raw = value.strip()
     parsed = urlparse(raw)
@@ -213,6 +231,69 @@ def _extract_cookies(
         except Exception:
             continue
     return {}
+
+
+def doctor(
+    domain: str,
+    browser: str = "chrome",
+    *,
+    bridge_host: str = DEFAULT_BRIDGE_HOST,
+) -> dict[str, Any]:
+    """Return redacted diagnostics for cookie extraction paths."""
+    clean_domain = _normalize_domain(domain)
+    browser = browser.lower()
+    comet_cookie_file = Path.home() / "Library/Application Support/Comet/Default/Cookies"
+    stages: list[dict[str, Any]] = []
+
+    stages.append({
+        "name": "normalize_domain",
+        "ok": bool(clean_domain),
+        "duration_ms": 0,
+        "detail": clean_domain,
+    })
+
+    if browser == "comet":
+        stages.append(_redacted_stage(
+            "comet_cookie_file",
+            lambda: {"available": comet_cookie_file.exists()},
+        ))
+        stages.append(_redacted_stage(
+            "comet_safe_storage",
+            lambda: {"available": _macos_safe_storage_key("Comet Safe Storage", "Comet") is not None},
+        ))
+        stages.append(_redacted_stage(
+            "comet_extract",
+            lambda: {"count": len(_extract_via_comet(clean_domain))},
+        ))
+
+    stages.append(_redacted_stage(
+        "bridge_extract",
+        lambda: {"count": len(_extract_via_bridge(clean_domain, bridge_host))},
+    ))
+    porta_path = shutil.which("porta")
+    stages.append({
+        "name": "porta_available",
+        "ok": porta_path is not None,
+        "duration_ms": 0,
+        "available": porta_path is not None,
+    })
+    if porta_path:
+        stages.append(_redacted_stage(
+            "porta_extract",
+            lambda: {"count": len(_extract_via_porta(clean_domain, browser))},
+        ))
+    stages.append(_redacted_stage(
+        "pycookiecheat_extract",
+        lambda: {"count": len(_extract_via_pycookiecheat(clean_domain, browser))},
+    ))
+
+    return {
+        "success": any(stage.get("ok") and "count" in stage for stage in stages),
+        "domain": clean_domain,
+        "browser": browser,
+        "bridge_host": bridge_host,
+        "stages": stages,
+    }
 
 
 def _inject_into_browser(domain: str, extracted: dict[str, str]) -> tuple[int, list[str]]:
