@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sqlite3
 import subprocess
 import time
 import urllib.request
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode, urlparse
 
@@ -70,7 +72,7 @@ def _extract_via_bridge(domain: str, bridge_host: str) -> dict[str, str]:
         return cookies
 
 
-def _extract_via_porta(domain: str) -> dict[str, str]:
+def _extract_via_porta(domain: str, browser: str = "chrome") -> dict[str, str]:
     """Extract cookies via porta CLI."""
     if not shutil.which("porta"):
         raise FileNotFoundError("porta not installed")
@@ -88,24 +90,125 @@ def _extract_via_porta(domain: str) -> dict[str, str]:
     return cookies
 
 
-def _extract_via_pycookiecheat(domain: str) -> dict[str, str]:
+def _extract_via_pycookiecheat(domain: str, browser: str = "chrome") -> dict[str, str]:
     """Extract cookies from host browser using pycookiecheat."""
-    from pycookiecheat import chrome_cookies
+    from pycookiecheat import BrowserType, chrome_cookies
 
     url = f"https://{domain}/"
-    cookies = chrome_cookies(url)
+    cookies = chrome_cookies(url, browser=BrowserType(browser))
     if not cookies:
         raise ValueError(f"pycookiecheat returned empty for {domain}")
     return cookies
 
 
-def _extract_cookies(domain: str, bridge_host: str = DEFAULT_BRIDGE_HOST) -> dict[str, str]:
+def _macos_safe_storage_key(service: str, account: str) -> str | None:
+    """Read a macOS Keychain generic password quietly via the security CLI.
+
+    Returns the stripped password on success, or None on any failure.
+    Output is captured, never printed.
+    """
+    try:
+        result = subprocess.run(
+            [
+                "security",
+                "find-generic-password",
+                "-w",
+                "-s",
+                service,
+                "-a",
+                account,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
+def _extract_via_comet(domain: str) -> dict[str, str]:
+    """Extract cookies from the Comet browser on macOS (Chromium-based)."""
+    from cryptography.hazmat.primitives.hashes import SHA1
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+    from pycookiecheat.chrome import chrome_decrypt
+    from pycookiecheat.common import generate_host_keys
+
+    cookie_file = Path.home() / "Library/Application Support/Comet/Default/Cookies"
+    if not cookie_file.exists():
+        raise FileNotFoundError(f"Comet cookie file not found: {cookie_file}")
+
+    key_material = _macos_safe_storage_key("Comet Safe Storage", "Comet")
+    if not key_material:
+        raise ValueError("Comet Safe Storage key unavailable")
+
+    kdf = PBKDF2HMAC(
+        algorithm=SHA1(),
+        iterations=1003,
+        length=16,
+        salt=b"saltysalt",
+    )
+    enc_key = kdf.derive(key_material.encode("utf8"))
+    init_vector = b" " * 16
+
+    cookies: dict[str, str] = {}
+    conn = sqlite3.connect(f"file:{cookie_file}?mode=ro", uri=True)
+    try:
+        conn.row_factory = sqlite3.Row
+        conn.text_factory = bytes
+        version_row = conn.execute(
+            "select value from meta where key = 'version';"
+        ).fetchone()
+        db_version = int(version_row[0]) if version_row else 0
+        for host_key in generate_host_keys(domain):
+            for row in conn.execute(
+                "select name, value, encrypted_value from cookies where host_key like ?",
+                (host_key,),
+            ):
+                name = row["name"]
+                value = row["value"]
+                encrypted = row["encrypted_value"]
+                if not value and encrypted[:3] in (b"v10", b"v11"):
+                    value = chrome_decrypt(
+                        encrypted,
+                        key=enc_key,
+                        init_vector=init_vector,
+                        cookie_database_version=db_version,
+                    )
+                if isinstance(name, bytes):
+                    name = name.decode("utf8")
+                if isinstance(value, bytes):
+                    value = value.decode("utf8")
+                cookies[name] = value
+    finally:
+        conn.close()
+
+    if not cookies:
+        raise ValueError(f"Comet returned empty for {domain}")
+    return cookies
+
+
+def _extract_cookies(
+    domain: str,
+    bridge_host: str = DEFAULT_BRIDGE_HOST,
+    browser: str = "chrome",
+) -> dict[str, str]:
     """Extract cookies by escalating through bridge, porta, then pycookiecheat."""
-    for extractor in [
+    browser = browser.lower()
+    extractors: list[Any] = [
         lambda: _extract_via_bridge(domain, bridge_host),
-        lambda: _extract_via_porta(domain),
-        lambda: _extract_via_pycookiecheat(domain),
-    ]:
+    ]
+    if browser == "comet":
+        extractors.append(lambda: _extract_via_comet(domain))
+    extractors.extend(
+        [
+            lambda: _extract_via_porta(domain, browser),
+            lambda: _extract_via_pycookiecheat(domain, browser),
+        ]
+    )
+    for extractor in extractors:
         try:
             return extractor()
         except Exception:
@@ -150,9 +253,8 @@ def inject(
     bridge_host: str = DEFAULT_BRIDGE_HOST,
 ) -> dict[str, Any]:
     """Extract cookies and inject them into agent-browser."""
-    _ = browser
     clean_domain = _normalize_domain(domain)
-    extracted = _extract_cookies(clean_domain, bridge_host)
+    extracted = _extract_cookies(clean_domain, bridge_host, browser)
     if not extracted:
         return {"success": False, "count": 0, "domain": clean_domain, "failures": []}
     count, failures = _inject_into_browser(clean_domain, extracted)
