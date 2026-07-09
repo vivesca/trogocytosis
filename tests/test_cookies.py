@@ -90,7 +90,7 @@ def test_inject_strips_protocol():
         with patch("trogocytosis._agent_browser.run", return_value=(True, "")):
             inject("https://github.com/")
 
-    mock_extract.assert_called_once_with("github.com", "mac:7743", "chrome")
+    mock_extract.assert_called_once_with("github.com", "chrome", "mac:7743")
 
 
 def test_inject_tracks_failures():
@@ -119,7 +119,7 @@ def test_inject_custom_bridge_host():
     with patch("trogocytosis.cookies._extract_cookies", return_value={}) as mock_extract:
         inject("github.com", bridge_host="myhost:8080")
 
-    mock_extract.assert_called_once_with("github.com", "myhost:8080", "chrome")
+    mock_extract.assert_called_once_with("github.com", "chrome", "myhost:8080")
 
 
 def test_op_lookup_uses_remote_host(monkeypatch):
@@ -154,7 +154,7 @@ def test_inject_passes_browser_into_extract_cookies():
     with patch("trogocytosis.cookies._extract_cookies", return_value={}) as mock_extract:
         inject("github.com", browser="comet")
 
-    mock_extract.assert_called_once_with("github.com", "mac:7743", "comet")
+    mock_extract.assert_called_once_with("github.com", "comet", "mac:7743")
 
 
 def test_extract_cookies_default_browser_is_chrome():
@@ -175,16 +175,40 @@ def test_extract_cookies_normalizes_browser_and_tries_comet_first():
     """An uppercase 'Comet' is normalized and the Comet extractor wins over fallbacks."""
     from trogocytosis import cookies
 
-    with patch.object(cookies, "_extract_via_bridge", side_effect=ConnectionError):
+    with patch.object(cookies, "_extract_via_bridge") as mock_bridge:
         with patch.object(cookies, "_extract_via_comet", return_value={"k": "v"}) as mock_comet:
             with patch.object(cookies, "_extract_via_porta") as mock_porta:
                 with patch.object(cookies, "_extract_via_pycookiecheat") as mock_pcc:
-                    result = cookies._extract_cookies("github.com", "mac:7743", "Comet")
+                    result = cookies._extract_cookies("github.com", "Comet", "mac:7743")
 
     assert result == {"k": "v"}
     mock_comet.assert_called_once_with("github.com")
+    mock_bridge.assert_not_called()
     mock_porta.assert_not_called()
     mock_pcc.assert_not_called()
+
+
+def test_extract_via_porta_passes_browser_in_required_argv_order():
+    """_extract_via_porta threads the browser through to porta as --browser <name>."""
+    from trogocytosis.cookies import _extract_via_porta
+
+    mock_result = MagicMock(returncode=0, stdout=json.dumps({"SID": "abc"}), stderr="")
+    with patch("shutil.which", return_value="/usr/local/bin/porta") as mock_which:
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            result = _extract_via_porta("example.com", "firefox")
+
+    assert result == {"SID": "abc"}
+    mock_which.assert_called_once_with("porta")
+    mock_run.assert_called_once()
+    assert mock_run.call_args.args[0] == [
+        "porta",
+        "inject",
+        "--browser",
+        "firefox",
+        "--domain",
+        "example.com",
+        "--json",
+    ]
 
 
 def test_macos_safe_storage_key_calls_expected_security_command():

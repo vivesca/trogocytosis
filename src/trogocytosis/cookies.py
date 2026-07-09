@@ -77,7 +77,7 @@ def _extract_via_porta(domain: str, browser: str = "chrome") -> dict[str, str]:
     if not shutil.which("porta"):
         raise FileNotFoundError("porta not installed")
     result = subprocess.run(
-        ["porta", "inject", "--domain", domain, "--json"],
+        ["porta", "inject", "--browser", browser, "--domain", domain, "--json"],
         capture_output=True,
         text=True,
         timeout=10,
@@ -192,16 +192,15 @@ def _extract_via_comet(domain: str) -> dict[str, str]:
 
 def _extract_cookies(
     domain: str,
-    bridge_host: str = DEFAULT_BRIDGE_HOST,
     browser: str = "chrome",
+    bridge_host: str = DEFAULT_BRIDGE_HOST,
 ) -> dict[str, str]:
-    """Extract cookies by escalating through bridge, porta, then pycookiecheat."""
+    """Extract cookies by escalating through comet, bridge, porta, then pycookiecheat."""
     browser = browser.lower()
-    extractors: list[Any] = [
-        lambda: _extract_via_bridge(domain, bridge_host),
-    ]
+    extractors: list[Any] = []
     if browser == "comet":
         extractors.append(lambda: _extract_via_comet(domain))
+    extractors.append(lambda: _extract_via_bridge(domain, bridge_host))
     extractors.extend(
         [
             lambda: _extract_via_porta(domain, browser),
@@ -254,7 +253,7 @@ def inject(
 ) -> dict[str, Any]:
     """Extract cookies and inject them into agent-browser."""
     clean_domain = _normalize_domain(domain)
-    extracted = _extract_cookies(clean_domain, bridge_host, browser)
+    extracted = _extract_cookies(clean_domain, browser, bridge_host)
     if not extracted:
         return {"success": False, "count": 0, "domain": clean_domain, "failures": []}
     count, failures = _inject_into_browser(clean_domain, extracted)
