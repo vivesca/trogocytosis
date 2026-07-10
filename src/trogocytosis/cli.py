@@ -133,6 +133,49 @@ def check_auth(*, json_output: bool = False) -> None:
         print(f"{status}: {result['url']}")
 
 
+@app.command(name="verify-auth")
+def verify_auth(
+    domain: str,
+    *,
+    url: str = "",
+    browser_name: str = "chrome",
+    bridge_host: str = "mac:7743",
+    json_output: bool = False,
+) -> None:
+    """Inject cookies, navigate, and verify the page is authenticated.
+
+    A successful cookie transfer alone does not prove a usable session;
+    this command only reports success when injection succeeds AND the
+    loaded page is authenticated.
+    """
+    injection = cookies.inject(domain, browser_name, bridge_host=bridge_host)
+    target_url = url or f"https://{domain}/"
+    navigation = browser.navigate(target_url)
+    auth = browser.check_auth()
+    snapshot = browser.snapshot()
+    success = bool(injection.get("success")) and bool(auth.get("authenticated"))
+    result = {
+        "success": success,
+        "domain": domain,
+        "target_url": target_url,
+        "injection": injection,
+        "navigation": navigation,
+        "auth": auth,
+        "snapshot": snapshot,
+    }
+    if json_output:
+        print(json.dumps(result))
+    elif success:
+        print(f"verified: {target_url}")
+    else:
+        print(
+            "Cookies may have been copied but the page still requires "
+            "authentication or redirected; the session is not verified.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+
 @app.command(name="login")
 def login(domain: str, *, login_url: str = "", json_output: bool = False) -> None:
     """Headed browser login with 1Password auto-fill. Persists session."""

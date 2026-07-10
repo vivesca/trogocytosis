@@ -218,6 +218,83 @@ def test_check_auth_command_required(capsys, mock_browser):
     assert "auth required: https://example.com/login" in captured.out
 
 
+def test_verify_auth_command_success_json(capsys, mock_browser, mock_cookies):
+    """verify-auth JSON path: injection + check_auth both succeed."""
+    mock_cookies.inject.return_value = {
+        "success": True,
+        "count": 5,
+        "domain": "linkedin.com",
+        "failures": [],
+    }
+    mock_browser.navigate.return_value = {
+        "title": "Terry Li",
+        "url": "https://www.linkedin.com/in/terryli",
+    }
+    mock_browser.check_auth.return_value = {
+        "authenticated": True,
+        "url": "https://www.linkedin.com/in/terryli",
+    }
+    mock_browser.snapshot.return_value = {"snapshot": "profile tree"}
+
+    with pytest.raises(SystemExit) as exc_info:
+        app([
+            "verify-auth",
+            "linkedin.com",
+            "--url",
+            "https://www.linkedin.com/in/terryli",
+            "--browser-name",
+            "comet",
+            "--json-output",
+        ])
+
+    assert exc_info.value.code == 0
+    mock_cookies.inject.assert_called_once_with(
+        "linkedin.com", "comet", bridge_host="mac:7743"
+    )
+    mock_browser.navigate.assert_called_once_with("https://www.linkedin.com/in/terryli")
+    mock_browser.check_auth.assert_called_once()
+    mock_browser.snapshot.assert_called_once()
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out.strip())
+    assert payload["success"] is True
+    assert payload["domain"] == "linkedin.com"
+    assert payload["target_url"] == "https://www.linkedin.com/in/terryli"
+    assert payload["injection"] == mock_cookies.inject.return_value
+    assert payload["navigation"] == mock_browser.navigate.return_value
+    assert payload["auth"] == mock_browser.check_auth.return_value
+    assert payload["snapshot"] == mock_browser.snapshot.return_value
+
+
+def test_verify_auth_command_fails_when_copied_but_unauthenticated(
+    capsys, mock_browser, mock_cookies
+):
+    """verify-auth human path exits nonzero when injection succeeds but page is not authed."""
+    mock_cookies.inject.return_value = {
+        "success": True,
+        "count": 5,
+        "domain": "linkedin.com",
+        "failures": [],
+    }
+    mock_browser.navigate.return_value = {
+        "title": "Sign In",
+        "url": "https://www.linkedin.com/login",
+    }
+    mock_browser.check_auth.return_value = {
+        "authenticated": False,
+        "url": "https://www.linkedin.com/login",
+    }
+    mock_browser.snapshot.return_value = {"snapshot": "login tree"}
+
+    with pytest.raises(SystemExit) as exc_info:
+        app(["verify-auth", "linkedin.com"])
+
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "verified:" not in captured.out
+    assert "not verified" in captured.err
+    assert "authentication" in captured.err or "auth" in captured.err.lower()
+
+
 def test_login_command_success(capsys, mock_cookies):
     """Test login command with successful result."""
     mock_cookies.login_headed.return_value = {
