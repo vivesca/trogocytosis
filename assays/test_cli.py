@@ -295,6 +295,41 @@ def test_verify_auth_command_fails_when_copied_but_unauthenticated(
     assert "authentication" in captured.err or "auth" in captured.err.lower()
 
 
+def test_verify_auth_command_json_failure_exits_nonzero(
+    capsys, mock_browser, mock_cookies
+):
+    """verify-auth JSON path prints the complete failure payload and exits 1."""
+    mock_cookies.inject.return_value = {
+        "success": False,
+        "count": 0,
+        "domain": "linkedin.com",
+        "failures": ["no cookies found"],
+    }
+    mock_browser.navigate.return_value = {
+        "title": "Sign In",
+        "url": "https://www.linkedin.com/login",
+    }
+    mock_browser.check_auth.return_value = {
+        "authenticated": False,
+        "url": "https://www.linkedin.com/login",
+    }
+    mock_browser.snapshot.return_value = {"snapshot": "login tree"}
+
+    with pytest.raises(SystemExit) as exc_info:
+        app(["verify-auth", "linkedin.com", "--json-output"])
+
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out.strip())
+    assert payload["success"] is False
+    assert payload["domain"] == "linkedin.com"
+    assert payload["target_url"] == "https://linkedin.com/"
+    assert payload["injection"] == mock_cookies.inject.return_value
+    assert payload["navigation"] == mock_browser.navigate.return_value
+    assert payload["auth"] == mock_browser.check_auth.return_value
+    assert payload["snapshot"] == mock_browser.snapshot.return_value
+
+
 def test_login_command_success(capsys, mock_cookies):
     """Test login command with successful result."""
     mock_cookies.login_headed.return_value = {

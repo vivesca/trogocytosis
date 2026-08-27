@@ -165,6 +165,8 @@ def verify_auth(
     }
     if json_output:
         print(json.dumps(result))
+        if not success:
+            raise SystemExit(1)
     elif success:
         print(f"verified: {target_url}")
     else:
