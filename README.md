@@ -1,5 +1,7 @@
 # trogocytosis
 
+> **Deprecated (2026-08-27).** This package is no longer an active Vivesca route, and no new releases are planned. Use **agent-browser** for normal browser control and dedicated profiles, **transcytosis** for explicitly authorized exact-domain cookie diagnostics and transfer, and **tegument** for hostile public-page stealth. Repository history remains available as reference.
+
 Browser automation CLI with credential transfer and stealth fallback.
 
 > In cell biology, trogocytosis is the process by which lymphocytes extract membrane fragments from other cells, acquiring their surface identity markers. This tool does the same: it borrows authenticated browser sessions and navigates hostile environments on behalf of AI agents.
